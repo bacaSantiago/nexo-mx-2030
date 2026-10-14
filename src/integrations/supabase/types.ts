@@ -19,25 +19,43 @@ export type Database = {
           content: string
           created_at: string
           evidence: Json | null
+          evidence_ids: string[]
           id: string
+          intent: string | null
+          latency_ms: number | null
+          model: string | null
+          params: Json | null
           role: string
           session_id: string
+          validated: boolean | null
         }
         Insert: {
           content: string
           created_at?: string
           evidence?: Json | null
+          evidence_ids?: string[]
           id?: string
+          intent?: string | null
+          latency_ms?: number | null
+          model?: string | null
+          params?: Json | null
           role: string
           session_id: string
+          validated?: boolean | null
         }
         Update: {
           content?: string
           created_at?: string
           evidence?: Json | null
+          evidence_ids?: string[]
           id?: string
+          intent?: string | null
+          latency_ms?: number | null
+          model?: string | null
+          params?: Json | null
           role?: string
           session_id?: string
+          validated?: boolean | null
         }
         Relationships: [
           {
@@ -678,31 +696,37 @@ export type Database = {
           barrier_code: string
           created_at: string
           description: string
+          evaluation_design: string | null
           id: string
           implementation_actors: string[]
           intervention_code: string
           intervention_name: string
           kpis: Json
+          module_code: string | null
         }
         Insert: {
           barrier_code: string
           created_at?: string
           description: string
+          evaluation_design?: string | null
           id?: string
           implementation_actors?: string[]
           intervention_code: string
           intervention_name: string
           kpis?: Json
+          module_code?: string | null
         }
         Update: {
           barrier_code?: string
           created_at?: string
           description?: string
+          evaluation_design?: string | null
           id?: string
           implementation_actors?: string[]
           intervention_code?: string
           intervention_name?: string
           kpis?: Json
+          module_code?: string | null
         }
         Relationships: []
       }
@@ -841,7 +865,9 @@ export type Database = {
       }
       scenario_result: {
         Row: {
+          assumption_values: Json
           assumptions_version: string
+          component_code: string
           created_at: string
           estimate: number
           geo_code: string
@@ -854,10 +880,13 @@ export type Database = {
           p90: number | null
           reference_year: number
           scenario_code: string
+          segment_code: string
           unit: string
         }
         Insert: {
+          assumption_values?: Json
           assumptions_version: string
+          component_code?: string
           created_at?: string
           estimate: number
           geo_code: string
@@ -870,10 +899,13 @@ export type Database = {
           p90?: number | null
           reference_year: number
           scenario_code: string
+          segment_code?: string
           unit: string
         }
         Update: {
+          assumption_values?: Json
           assumptions_version?: string
+          component_code?: string
           created_at?: string
           estimate?: number
           geo_code?: string
@@ -886,6 +918,7 @@ export type Database = {
           p90?: number | null
           reference_year?: number
           scenario_code?: string
+          segment_code?: string
           unit?: string
         }
         Relationships: [
@@ -944,7 +977,11 @@ export type Database = {
         Row: {
           bundle_status: string | null
           created_at: string
+          edition: string | null
+          geographic_coverage: string | null
           id: string
+          institution: string | null
+          modules_used: string[]
           notes: string | null
           official_url: string
           purpose: string | null
@@ -956,13 +993,18 @@ export type Database = {
           status: string
           tier: string | null
           title: string
+          universe_description: string | null
           updated_at: string
           year: number | null
         }
         Insert: {
           bundle_status?: string | null
           created_at?: string
+          edition?: string | null
+          geographic_coverage?: string | null
           id?: string
+          institution?: string | null
+          modules_used?: string[]
           notes?: string | null
           official_url: string
           purpose?: string | null
@@ -974,13 +1016,18 @@ export type Database = {
           status?: string
           tier?: string | null
           title: string
+          universe_description?: string | null
           updated_at?: string
           year?: number | null
         }
         Update: {
           bundle_status?: string | null
           created_at?: string
+          edition?: string | null
+          geographic_coverage?: string | null
           id?: string
+          institution?: string | null
+          modules_used?: string[]
           notes?: string | null
           official_url?: string
           purpose?: string | null
@@ -992,6 +1039,7 @@ export type Database = {
           status?: string
           tier?: string | null
           title?: string
+          universe_description?: string | null
           updated_at?: string
           year?: number | null
         }
