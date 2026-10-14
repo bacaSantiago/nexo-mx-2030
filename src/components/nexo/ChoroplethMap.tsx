@@ -49,7 +49,7 @@ export function ChoroplethMap({
           const popup = new maplibre.Popup({ closeButton: false, closeOnClick: false });
           map.on("mousemove", "fill", (e: import("maplibre-gl").MapLayerMouseEvent) => {
             const f = e.features?.[0];
-            const code = f?.properties?.geo_code as string | undefined;
+            const code = f?.properties?.["geo_code"] as string | undefined;
             const txt = (map as unknown as { __labels?: Record<string, string> }).__labels?.[code ?? ""];
             if (txt) popup.setLngLat(e.lngLat).setHTML(`<div style="font:12px Manrope,sans-serif">${txt}</div>`).addTo(map);
           });

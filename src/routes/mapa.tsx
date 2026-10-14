@@ -156,7 +156,7 @@ function MapaPage() {
                     <td className="py-1.5 pr-3">{p.geo_name}</td>
                     <td className="tabular py-1.5 pr-3 text-right">{p.users_pct ?? "Pendiente de carga"}</td>
                     <td className="tabular py-1.5 pr-3 text-right">{p.households_pct ?? "Pendiente de carga"}</td>
-                    <td className="py-1.5">{p.quadrant ? QUAD[p.quadrant].label : "—"}</td>
+                    <td className="py-1.5">{p.quadrant ? QUAD[p.quadrant]?.label : "—"}</td>
                   </tr>
                 ))}
               </tbody>
