@@ -127,7 +127,7 @@ export type InterventionItem = {
   description: string;
   implementation_actors: string[];
   module_code: string | null;
-  kpis: unknown;
+  kpis: { kpi?: string }[];
   evaluation_design: string | null;
   scores: {
     geo_code: string;
@@ -163,7 +163,7 @@ export type FilterOptions = {
 };
 
 export type ScenarioGridPayload = {
-  definitions: { scenario_code: string; scenario_name: string; description: string; assumptions: unknown }[];
+  definitions: { scenario_code: string; scenario_name: string; description: string; assumptions: { parameters?: import("@/lib/scenarios").ScenarioParam[] } }[];
   rows: import("@/lib/scenarios").ScenarioRow[];
   metrics: { metric_code: string; metric_label: string; default_unit: string; universe: string }[];
   lineage: { fact_id: string; transformation: string; loaded_version: string; source_page: string | null }[];

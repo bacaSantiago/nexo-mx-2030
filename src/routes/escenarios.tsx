@@ -101,7 +101,7 @@ function Escenarios() {
       `# generado: ${new Date().toISOString()}`,
       "indicador,anio,estimacion,p10,p90,unidad,interpolado,filas_base,linaje",
       ...kpi.map((k) => csvLine(k.label, lastYear, k.value, k.unit, data.lineage)),
-      ...KPIS.flatMap((k) => (k.code === "scenario_adoption_pct" ? years.map((y) => csvLine(`${k.label} ${y}`, y, resolveFor(code, k.code, y), k.unit, data.lineage)) : [])),
+      ...KPIS.flatMap((k) => (k.code === "scenario_adoption_pct" ? years.map((y) => csvLine(`${k.label} ${y}`, y, resolveFor(code, k.code, y), unitOf(k.code), data.lineage)) : [])),
     ];
     downloadBlob(new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" }), `nexo-escenario-${code}.csv`);
   };
