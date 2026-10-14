@@ -10,33 +10,128 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccionesRouteImport } from './routes/acciones'
+import { Route as EscenariosRouteImport } from './routes/escenarios'
+import { Route as ExplorarRouteImport } from './routes/explorar'
+import { Route as FuentesRouteImport } from './routes/fuentes'
+import { Route as MapaRouteImport } from './routes/mapa'
+import { Route as MetodologiaRouteImport } from './routes/metodologia'
+import { Route as SegmentosRouteImport } from './routes/segmentos'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccionesRoute = AccionesRouteImport.update({
+  id: '/acciones',
+  path: '/acciones',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EscenariosRoute = EscenariosRouteImport.update({
+  id: '/escenarios',
+  path: '/escenarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExplorarRoute = ExplorarRouteImport.update({
+  id: '/explorar',
+  path: '/explorar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FuentesRoute = FuentesRouteImport.update({
+  id: '/fuentes',
+  path: '/fuentes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MapaRoute = MapaRouteImport.update({
+  id: '/mapa',
+  path: '/mapa',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MetodologiaRoute = MetodologiaRouteImport.update({
+  id: '/metodologia',
+  path: '/metodologia',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SegmentosRoute = SegmentosRouteImport.update({
+  id: '/segmentos',
+  path: '/segmentos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/acciones': typeof AccionesRoute
+  '/escenarios': typeof EscenariosRoute
+  '/explorar': typeof ExplorarRoute
+  '/fuentes': typeof FuentesRoute
+  '/mapa': typeof MapaRoute
+  '/metodologia': typeof MetodologiaRoute
+  '/segmentos': typeof SegmentosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/acciones': typeof AccionesRoute
+  '/escenarios': typeof EscenariosRoute
+  '/explorar': typeof ExplorarRoute
+  '/fuentes': typeof FuentesRoute
+  '/mapa': typeof MapaRoute
+  '/metodologia': typeof MetodologiaRoute
+  '/segmentos': typeof SegmentosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/acciones': typeof AccionesRoute
+  '/escenarios': typeof EscenariosRoute
+  '/explorar': typeof ExplorarRoute
+  '/fuentes': typeof FuentesRoute
+  '/mapa': typeof MapaRoute
+  '/metodologia': typeof MetodologiaRoute
+  '/segmentos': typeof SegmentosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/acciones'
+    | '/escenarios'
+    | '/explorar'
+    | '/fuentes'
+    | '/mapa'
+    | '/metodologia'
+    | '/segmentos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/acciones'
+    | '/escenarios'
+    | '/explorar'
+    | '/fuentes'
+    | '/mapa'
+    | '/metodologia'
+    | '/segmentos'
+  id:
+    | '__root__'
+    | '/'
+    | '/acciones'
+    | '/escenarios'
+    | '/explorar'
+    | '/fuentes'
+    | '/mapa'
+    | '/metodologia'
+    | '/segmentos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccionesRoute: typeof AccionesRoute
+  EscenariosRoute: typeof EscenariosRoute
+  ExplorarRoute: typeof ExplorarRoute
+  FuentesRoute: typeof FuentesRoute
+  MapaRoute: typeof MapaRoute
+  MetodologiaRoute: typeof MetodologiaRoute
+  SegmentosRoute: typeof SegmentosRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +143,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/acciones': {
+      id: '/acciones'
+      path: '/acciones'
+      fullPath: '/acciones'
+      preLoaderRoute: typeof AccionesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/escenarios': {
+      id: '/escenarios'
+      path: '/escenarios'
+      fullPath: '/escenarios'
+      preLoaderRoute: typeof EscenariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/explorar': {
+      id: '/explorar'
+      path: '/explorar'
+      fullPath: '/explorar'
+      preLoaderRoute: typeof ExplorarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fuentes': {
+      id: '/fuentes'
+      path: '/fuentes'
+      fullPath: '/fuentes'
+      preLoaderRoute: typeof FuentesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mapa': {
+      id: '/mapa'
+      path: '/mapa'
+      fullPath: '/mapa'
+      preLoaderRoute: typeof MapaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/metodologia': {
+      id: '/metodologia'
+      path: '/metodologia'
+      fullPath: '/metodologia'
+      preLoaderRoute: typeof MetodologiaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/segmentos': {
+      id: '/segmentos'
+      path: '/segmentos'
+      fullPath: '/segmentos'
+      preLoaderRoute: typeof SegmentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccionesRoute: AccionesRoute,
+  EscenariosRoute: EscenariosRoute,
+  ExplorarRoute: ExplorarRoute,
+  FuentesRoute: FuentesRoute,
+  MapaRoute: MapaRoute,
+  MetodologiaRoute: MetodologiaRoute,
+  SegmentosRoute: SegmentosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

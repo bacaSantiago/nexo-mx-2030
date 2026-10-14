@@ -88,7 +88,7 @@ export const compareSegments = createServerFn({ method: "GET" })
       title: `${metric?.metric_label ?? "Métrica"} por ${dimLabel[data.dimension]}`,
       metric,
       rows: filtered,
-      labelFor: (_r, s) => s[data.dimension],
+      labelFor: (_r, s) => s[data.dimension] ?? "",
       warnings: ["Comparación descriptiva entre segmentos; no implica causalidad."],
     });
   });

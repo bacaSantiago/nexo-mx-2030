@@ -159,7 +159,7 @@ export async function buildEvidence(
     title: args.title,
     metric: args.metric,
     rows: out,
-    universe: universes.length === 1 ? universes[0] : universes.length ? universes.join(" / ") : args.metric?.universe ?? null,
+    universe: universes.length === 1 ? (universes[0] ?? null) : universes.length ? universes.join(" / ") : args.metric?.universe ?? null,
     years: [...new Set(out.map((r) => r.year))].sort(),
     sources,
     methods,
