@@ -95,6 +95,14 @@ export type SourceCatalogItem = {
   official_url: string;
   purpose: string | null;
   status: string;
+  institution: string | null;
+  edition: string | null;
+  universe_description: string | null;
+  geographic_coverage: string | null;
+  modules_used: string[];
+  retrieved_at: string | null;
+  sha256: string | null;
+  updated_at: string;
   universes: string[];
   estimate_count: number;
 };
@@ -118,6 +126,9 @@ export type InterventionItem = {
   barrier_code: string;
   description: string;
   implementation_actors: string[];
+  module_code: string | null;
+  kpis: unknown;
+  evaluation_design: string | null;
   scores: {
     geo_code: string;
     reach: number | null;
@@ -149,4 +160,12 @@ export type FilterOptions = {
   years: number[];
   geographies: { geo_code: string; geo_name: string }[];
   segments: Record<string, string[]>;
+};
+
+export type ScenarioGridPayload = {
+  definitions: { scenario_code: string; scenario_name: string; description: string; assumptions: unknown }[];
+  rows: import("@/lib/scenarios").ScenarioRow[];
+  metrics: { metric_code: string; metric_label: string; default_unit: string; universe: string }[];
+  lineage: { fact_id: string; transformation: string; loaded_version: string; source_page: string | null }[];
+  generated_at: string;
 };
