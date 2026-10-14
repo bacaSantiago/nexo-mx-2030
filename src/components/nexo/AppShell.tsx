@@ -4,13 +4,12 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { Button } from "@/components/ui/button";
 import { Brand, NavigationRail, NavLinks } from "./NavigationRail";
 import { GlobalFilters } from "./GlobalFilters";
-import { FiltersProvider } from "./filters-context";
 
 export function AppShell({ children, toolbar }: { children: ReactNode; toolbar?: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [open, setOpen] = useState(false);
   return (
-    <FiltersProvider>
+    <>
       <div className="flex h-dvh w-full overflow-hidden bg-background">
         <NavigationRail collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
         <div className="flex min-w-0 flex-1 flex-col">
@@ -40,7 +39,7 @@ export function AppShell({ children, toolbar }: { children: ReactNode; toolbar?:
           <div className="min-h-0 flex-1">{children}</div>
         </div>
       </div>
-    </FiltersProvider>
+    </>
   );
 }
 
