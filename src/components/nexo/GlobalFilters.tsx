@@ -21,9 +21,9 @@ function useDefs(): Def[] {
   return [
     { key: "year", label: "Año", options: (data?.years ?? []).map((y) => ({ value: String(y), label: String(y) })) },
     { key: "geo_code", label: "Entidad", options: (data?.geographies ?? []).map((g) => ({ value: g.geo_code, label: g.geo_name })) },
-    { key: "area", label: "Ámbito", options: toOpts(seg.area) },
-    { key: "sex", label: "Sexo", options: toOpts(seg.sex) },
-    { key: "age_group", label: "Edad", options: toOpts(seg.age_group) },
+    { key: "area", label: "Ámbito", options: toOpts(seg["area"]) },
+    { key: "sex", label: "Sexo", options: toOpts(seg["sex"]) },
+    { key: "age_group", label: "Edad", options: toOpts(seg["age_group"]) },
     { key: "schooling", label: "Escolaridad", options: [], pending: true },
     { key: "income_decile", label: "Ingreso imputado", options: [], pending: true },
   ];

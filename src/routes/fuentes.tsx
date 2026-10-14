@@ -43,7 +43,7 @@ function Fuentes() {
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {list.length === 0 && <div className="md:col-span-2"><EmptyState title="Sin coincidencias" description="Prueba con otro término." /></div>}
           {list.map((s) => {
-            const st = STATUS[s.status] ?? STATUS.pending_download;
+            const st = STATUS[s.status] ?? { label: "Pendiente de carga", cls: "bg-warning-soft text-warning-foreground" };
             return (
               <article key={s.id} className="flex flex-col rounded-lg border bg-card p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">

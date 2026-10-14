@@ -42,7 +42,7 @@ function answerFor(id: string, e: EvidencePayload): string {
   const src = e.sources[0]?.source_name ?? "fuente oficial";
   const r = e.rows;
   if (!r.length) return "Pendiente de carga: aún no hay estimaciones revisadas para responder esta pregunta.";
-  const fv = (x: (typeof r)[number]) => formatValue(x.estimate, x.unit);
+  const fv = (x: (typeof r)[number] | undefined) => (x ? formatValue(x.estimate, x.unit) : "—");
   switch (id) {
     case "purchase": {
       const p = r.find((x) => x.label.startsWith("Comprar"));
@@ -58,18 +58,18 @@ function answerFor(id: string, e: EvidencePayload): string {
         : "Pendiente de carga.";
     }
     case "barriers":
-      return `La razón más reportada es “${r[0].label}” (${fv(r[0])}), seguida de “${r[1]?.label}” (${r[1] ? fv(r[1]) : "—"}). Es respuesta múltiple: los porcentajes no se suman (${src}).`;
+      return `La razón más reportada es “${r[0]?.label}” (${fv(r[0])}), seguida de “${r[1]?.label}” (${r[1] ? fv(r[1]) : "—"}). Es respuesta múltiple: los porcentajes no se suman (${src}).`;
     case "categories":
-      return `Entre quienes compraron por internet, la categoría más frecuente fue “${r[0].label}” (${fv(r[0])}), seguida de “${r[1]?.label}” (${r[1] ? fv(r[1]) : "—"}). Respuesta múltiple (${src}).`;
+      return `Entre quienes compraron por internet, la categoría más frecuente fue “${r[0]?.label}” (${fv(r[0])}), seguida de “${r[1]?.label}” (${r[1] ? fv(r[1]) : "—"}). Respuesta múltiple (${src}).`;
     case "states": {
       const low = [...r].sort((a, b) => a.estimate - b.estimate).slice(0, 3);
-      return `Las entidades con menor porcentaje de personas usuarias de internet en ${low[0].year} son ${low.map((x) => `${x.geo_name} (${fv(x)})`).join(", ")}. Diferencias pequeñas pueden no ser significativas.`;
+      return `Las entidades con menor porcentaje de personas usuarias de internet en ${low[0]?.year} son ${low.map((x) => `${x.geo_name} (${fv(x)})`).join(", ")}. Diferencias pequeñas pueden no ser significativas.`;
     }
     case "age": {
       const sorted = [...r].sort((a, b) => b.estimate - a.estimate);
       const hi = sorted[0];
       const lo = sorted[sorted.length - 1];
-      return `En ${hi.year}, el uso de internet va de ${fv(hi)} en ${hi.label} a ${fv(lo)} en ${lo.label} (${src}).`;
+      return `En ${hi?.year}, el uso de internet va de ${fv(hi)} en ${hi?.label} a ${fv(lo)} en ${lo?.label} (${src}).`;
     }
   }
   return "";

@@ -31,7 +31,7 @@ export function EvidenceVisual({ evidence }: { evidence: EvidencePayload }) {
     return (
       <TrendChart
         data={data}
-        unit={evidence.rows[0].unit}
+        unit={evidence.rows[0]?.unit ?? "percent"}
         series={[{ key: "v", label: evidence.metric?.metric_label ?? evidence.title, color: "var(--chart-2)" }]}
       />
     );

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSuspenseQueries } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { AppShell, PageScroll } from "@/components/nexo/AppShell";
 import { VisualCard } from "@/components/nexo/visual-card";
 import { GroupedBars } from "@/components/nexo/charts";
@@ -23,7 +23,7 @@ const qs = [segmentsQuery("internet_users_pct", "sex", 2025), segmentsQuery("int
 
 export const Route = createFileRoute("/segmentos")({
   head: () => headFor("Segmentos", "Perfiles de brecha digital por sexo, ámbito y edad, con tabla comparativa de cifras oficiales."),
-  loader: ({ context }) => Promise.all(qs.map((q) => context.queryClient.ensureQueryData(q))),
+  loader: ({ context }) => Promise.all(qs.map((q) => context.queryClient.ensureQueryData(q as typeof qs[0]))),
   pendingComponent: RoutePending,
   errorComponent: RouteError,
   notFoundComponent: RouteNotFound,
@@ -47,7 +47,10 @@ function Persona({ title, hint, row, extra }: { title: string; hint: string; row
 }
 
 function Segmentos() {
-  const [sex, area, age, areaBuy] = useSuspenseQueries({ queries: qs }).map((r) => r.data);
+  const sex = useSuspenseQuery(qs[0]).data;
+  const area = useSuspenseQuery(qs[1]).data;
+  const age = useSuspenseQuery(qs[2]).data;
+  const areaBuy = useSuspenseQuery(qs[3]).data;
   const rural = area.rows.find((r) => r.label === "Rural");
   const ruralBuy = areaBuy.rows.find((r) => r.label === "Rural");
   const old = age.rows.find((r) => r.label.startsWith("65"));

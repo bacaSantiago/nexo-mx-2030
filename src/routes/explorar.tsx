@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSuspenseQueries } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { AppShell, PageScroll } from "@/components/nexo/AppShell";
 import { VisualCard } from "@/components/nexo/visual-card";
 import { BarList, TrendChart } from "@/components/nexo/charts";
@@ -23,7 +23,7 @@ const qs = [
 
 export const Route = createFileRoute("/explorar")({
   head: () => headFor("Explorar", "Embudo de adopción digital, tendencia de acceso, categorías compradas y barreras de no compra en México."),
-  loader: ({ context }) => Promise.all(qs.map((q) => context.queryClient.ensureQueryData(q))),
+  loader: ({ context }) => Promise.all(qs.map((q) => context.queryClient.ensureQueryData(q as typeof qs[0]))),
   pendingComponent: RoutePending,
   errorComponent: RouteError,
   notFoundComponent: RouteNotFound,
@@ -35,7 +35,14 @@ function latest(e: EvidencePayload) {
 }
 
 function Explorar() {
-  const [users, hh, uses, area, cats, bars, usersM, nonM] = useSuspenseQueries({ queries: qs }).map((r) => r.data);
+  const users = useSuspenseQuery(qs[0]).data;
+  const hh = useSuspenseQuery(qs[1]).data;
+  const uses = useSuspenseQuery(qs[2]).data;
+  const area = useSuspenseQuery(qs[3]).data;
+  const cats = useSuspenseQuery(qs[4]).data;
+  const bars = useSuspenseQuery(qs[5]).data;
+  const usersM = useSuspenseQuery(qs[6]).data;
+  const nonM = useSuspenseQuery(qs[7]).data;
   const purchase = uses.rows.find((r) => r.label.startsWith("Comprar")) ?? null;
 
   // Trend: national users + households, joined by year without filling gaps

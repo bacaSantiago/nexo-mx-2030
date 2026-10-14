@@ -29,7 +29,8 @@ export function ChoroplethMap({
     let cancelled = false;
     (async () => {
       try {
-        const maplibre = (await import("maplibre-gl")).default;
+        const mod = await import("maplibre-gl");
+        const maplibre = ((mod as unknown as { default?: typeof mod }).default ?? mod) as typeof mod;
         const geo = await fetch("/geo/mx_states.json").then((r) => r.json());
         if (cancelled || !el.current) return;
         const map = new maplibre.Map({
@@ -46,7 +47,7 @@ export function ChoroplethMap({
           map.addLayer({ id: "fill", type: "fill", source: "states", paint: { "fill-color": cssVar("--muted"), "fill-opacity": 0.95 } });
           map.addLayer({ id: "line", type: "line", source: "states", paint: { "line-color": cssVar("--card"), "line-width": 0.8 } });
           const popup = new maplibre.Popup({ closeButton: false, closeOnClick: false });
-          map.on("mousemove", "fill", (e) => {
+          map.on("mousemove", "fill", (e: import("maplibre-gl").MapLayerMouseEvent) => {
             const f = e.features?.[0];
             const code = f?.properties?.geo_code as string | undefined;
             const txt = (map as unknown as { __labels?: Record<string, string> }).__labels?.[code ?? ""];
@@ -70,16 +71,16 @@ export function ChoroplethMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
-    const colors = [1, 2, 3, 4, 5].map((i) => cssVar(`--choro-${i}`));
+    const colors: string[] = [1, 2, 3, 4, 5].map((i) => cssVar(`--choro-${i}`));
     const pending = cssVar("--warning-soft");
     const missing = cssVar("--muted");
     const expr: unknown[] = ["match", ["get", "geo_code"]];
     const labels: Record<string, string> = {};
     for (const p of points) {
       const v = p[metric];
-      let c = missing;
-      if (mode === "precision") c = v == null ? missing : precision[p.geo_code] === "pending_microdata_recalculation" ? pending : colors[3];
-      else if (v != null) c = colors[Math.min(CHORO_BREAKS.filter((b) => v >= b).length, 4)];
+      let c: string = missing;
+      if (mode === "precision") c = v == null ? missing : precision[p.geo_code] === "pending_microdata_recalculation" ? pending : (colors[3] ?? missing);
+      else if (v != null) c = colors[Math.min(CHORO_BREAKS.filter((b) => v >= b).length, 4)] ?? missing;
       expr.push(p.geo_code, c);
       // sanitized: only numbers and DB state names (escaped)
       const name = p.geo_name.replace(/[<>&"]/g, "");
