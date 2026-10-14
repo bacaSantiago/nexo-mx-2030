@@ -17,6 +17,7 @@ import { Route as FuentesRouteImport } from './routes/fuentes'
 import { Route as MapaRouteImport } from './routes/mapa'
 import { Route as MetodologiaRouteImport } from './routes/metodologia'
 import { Route as SegmentosRouteImport } from './routes/segmentos'
+import { Route as ApiPublicNexoChatRouteImport } from './routes/api/public/nexo-chat'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +59,11 @@ const SegmentosRoute = SegmentosRouteImport.update({
   path: '/segmentos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicNexoChatRoute = ApiPublicNexoChatRouteImport.update({
+  id: '/api/public/nexo-chat',
+  path: '/api/public/nexo-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/mapa': typeof MapaRoute
   '/metodologia': typeof MetodologiaRoute
   '/segmentos': typeof SegmentosRoute
+  '/api/public/nexo-chat': typeof ApiPublicNexoChatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/mapa': typeof MapaRoute
   '/metodologia': typeof MetodologiaRoute
   '/segmentos': typeof SegmentosRoute
+  '/api/public/nexo-chat': typeof ApiPublicNexoChatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/mapa': typeof MapaRoute
   '/metodologia': typeof MetodologiaRoute
   '/segmentos': typeof SegmentosRoute
+  '/api/public/nexo-chat': typeof ApiPublicNexoChatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/mapa'
     | '/metodologia'
     | '/segmentos'
+    | '/api/public/nexo-chat'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/mapa'
     | '/metodologia'
     | '/segmentos'
+    | '/api/public/nexo-chat'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/mapa'
     | '/metodologia'
     | '/segmentos'
+    | '/api/public/nexo-chat'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +144,7 @@ export interface RootRouteChildren {
   MapaRoute: typeof MapaRoute
   MetodologiaRoute: typeof MetodologiaRoute
   SegmentosRoute: typeof SegmentosRoute
+  ApiPublicNexoChatRoute: typeof ApiPublicNexoChatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SegmentosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/nexo-chat': {
+      id: '/api/public/nexo-chat'
+      path: '/api/public/nexo-chat'
+      fullPath: '/api/public/nexo-chat'
+      preLoaderRoute: typeof ApiPublicNexoChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   MapaRoute: MapaRoute,
   MetodologiaRoute: MetodologiaRoute,
   SegmentosRoute: SegmentosRoute,
+  ApiPublicNexoChatRoute: ApiPublicNexoChatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
