@@ -7,14 +7,24 @@ import { VisualCard } from "@/components/nexo/visual-card";
 import { evidenceSummary } from "@/components/nexo/EvidenceCanvas";
 import { LoadingState } from "@/components/nexo/states";
 import { headFor, RouteError, RouteNotFound, RoutePending } from "@/components/nexo/route-helpers";
-import { useGlobalFilters } from "@/components/nexo/filters-context";
+import { segmentFromFilters, useGlobalFilters } from "@/components/nexo/filters-context";
 import { municipalInternetQuery, opportunityQuery } from "@/lib/queries";
 import type { PrecisionFlag } from "@/lib/analytics/types";
 import { cn } from "@/lib/utils";
 
 const ChoroplethMap = lazy(() => import("@/components/nexo/ChoroplethMap").then((m) => ({ default: m.ChoroplethMap })));
 const MunicipalPointMap = lazy(() => import("@/components/nexo/MunicipalPointMap").then((m) => ({ default: m.MunicipalPointMap })));
-const BREAKS = [70, 75, 80, 85, 90];
+const DEFAULT_BREAKS = [70, 75, 80, 85, 90];
+
+function scaleBreaks(values: number[]) {
+  if (!values.length) return DEFAULT_BREAKS;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  if (min >= 65 && max <= 100) return DEFAULT_BREAKS;
+  const step = (max - min) / 5;
+  if (step <= 0) return DEFAULT_BREAKS;
+  return [1, 2, 3, 4].map((i) => Math.round((min + step * i) * 10) / 10);
+}
 
 export const Route = createFileRoute("/mapa")({
   head: () => headFor("Mapa de oportunidad", "Mapa por entidad del uso de internet y la conexión de hogares, con cuadrantes de oportunidad y estado de precisión."),
@@ -53,12 +63,14 @@ function Toggle<T extends string>({ value, options, onChange, label }: { value: 
 function MapaPage() {
   const { filters } = useGlobalFilters();
   const year = filters.year ?? 2025;
-  const { data } = useQuery({ ...opportunityQuery(year), placeholderData: keepPreviousData });
+  const segment = segmentFromFilters(filters);
+  const { data } = useQuery({ ...opportunityQuery(year, segment), placeholderData: keepPreviousData });
   const [metric, setMetric] = useState<"users_pct" | "households_pct">("users_pct");
   const [mode, setMode] = useState<"value" | "precision">("value");
+  const [munLayer, setMunLayer] = useState<"dwellings_with_internet_pct" | "eic_dwellings_with_internet_pct">("dwellings_with_internet_pct");
   const [munQuery, setMunQuery] = useState("");
   const [munFocus, setMunFocus] = useState<string | null>(null);
-  const municipal = useQuery(municipalInternetQuery()).data;
+  const municipal = useQuery(municipalInternetQuery(munLayer)).data;
   const precision = useMemo(() => {
     const out: Record<string, PrecisionFlag> = {};
     for (const p of data?.points ?? []) {
@@ -76,19 +88,21 @@ function MapaPage() {
   }, [municipal, filters.geo_code, munQuery]);
   if (!data) return <AppShell><LoadingState /></AppShell>;
   const focused = filters.geo_code ? data.points.filter((p) => p.geo_code === filters.geo_code) : data.points;
-  const crossFilter = filters.sex || filters.age_group || filters.schooling || filters.area || filters.income_decile;
   const pts = data.points.filter((p) => p.users_pct != null && p.households_pct != null);
   const sorted = [...data.points].sort((a, b) => (b[metric] ?? -1) - (a[metric] ?? -1));
   const metricLabel = metric === "users_pct" ? "Personas usuarias de internet (6 años y más)" : "Hogares con internet";
+  const breaks = scaleBreaks(data.points.map((p) => p[metric]).filter((v): v is number => v != null));
+  const segmentLabel = segment ? Object.values(segment).join(" · ") : null;
   const munListed = munPoints.slice(0, filters.geo_code || munQuery.trim() ? 80 : 12);
 
   return (
     <AppShell>
-      <PageScroll title="Mapa de oportunidad" description="Dónde hay acceso, dónde hay uso y dónde se acumulan rezagos. Cifras estatales observadas; la compra digital estatal requerirá estimación modelada.">
+      <PageScroll title="Mapa de oportunidad" description="Dónde hay acceso, dónde hay uso y dónde se acumulan rezagos. El color de personas sigue el segmento activo cuando ese cruce estatal ya está cargado.">
         <p className="mb-3 text-xs text-muted-foreground">
           Año {year}.
           {filters.geo_code ? ` Tabla acotada a la entidad ${focused[0]?.geo_name ?? filters.geo_code}.` : " Mapa y tabla de las 32 entidades."}
-          {crossFilter ? " El mapa no tiene cruce estatal por sexo, edad, escolaridad, ámbito o ingreso; esos filtros no cambian estas cifras." : ""}
+          {segmentLabel ? ` Personas: ${segmentLabel}. Hogares sigue el total de la entidad.` : ""}
+          {segmentLabel && data.points.every((p) => p.users_pct == null) ? " Ese cruce estatal no tiene filas." : ""}
         </p>
         <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
           <VisualCard
@@ -103,12 +117,12 @@ function MapaPage() {
             </div>
             <ClientOnly fallback={<LoadingState label="Cargando mapa…" rows={1} />}>
               <Suspense fallback={<LoadingState label="Cargando mapa…" rows={1} />}>
-                <ChoroplethMap points={data.points} metric={metric} mode={mode} precision={precision} />
+                <ChoroplethMap points={data.points} metric={metric} mode={mode} precision={precision} breaks={breaks} />
               </Suspense>
             </ClientOnly>
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs" aria-label="Leyenda">
               {mode === "value" ? (
-                ["< 70", "70–75", "75–80", "80–85", "≥ 85"].map((l, i) => (
+                [`< ${breaks[0]}`, `${breaks[0]}–${breaks[1]}`, `${breaks[1]}–${breaks[2]}`, `${breaks[2]}–${breaks[3]}`, `≥ ${breaks[3]}`].map((l, i) => (
                   <span key={l} className="inline-flex items-center gap-1.5">
                     <span className={cn("size-3 rounded-sm border", ["bg-choro-1", "bg-choro-2", "bg-choro-3", "bg-choro-4", "bg-choro-5"][i])} aria-hidden />
                     {l} %
@@ -122,7 +136,7 @@ function MapaPage() {
                 </>
               )}
             </div>
-            <p className="sr-only">Cortes de la escala: {BREAKS.join(", ")} por ciento.</p>
+            <p className="sr-only">Cortes de la escala: {breaks.join(", ")} por ciento.</p>
           </VisualCard>
 
           <VisualCard evidence={data.evidence} title="Cuadrantes de oportunidad" summary={evidenceSummary(data.evidence)}>
@@ -193,12 +207,22 @@ function MapaPage() {
         <section className="mt-8">
           {municipal?.evidence ? <VisualCard
             evidence={municipal.evidence}
-            title="Viviendas con internet por municipio, 2020"
-            summary={`${municipal.points.length} municipios del Censo 2020. La búsqueda y la entidad filtran el mapa.`}
+            title={munLayer === "eic_dwellings_with_internet_pct" ? "Viviendas con internet por municipio, EIC 2025" : "Viviendas con internet por municipio, 2020"}
+            summary={`${municipal.points.length} municipios. La búsqueda y la entidad filtran el mapa.`}
             actions={null}
           >
+            <div className="mb-3">
+              <Toggle
+                label="Capa municipal"
+                value={munLayer}
+                onChange={setMunLayer}
+                options={[{ v: "dwellings_with_internet_pct", l: "Censo 2020" }, { v: "eic_dwellings_with_internet_pct", l: "EIC 2025" }]}
+              />
+            </div>
             <p className="mb-3 text-xs text-muted-foreground">
-              Porcentaje de viviendas particulares habitadas con internet. Es el censo, no la encuesta de personas, y el año no cambia con el filtro. El punto es un centroide, no el contorno del municipio.
+              {munLayer === "eic_dwellings_with_internet_pct"
+                ? "Porcentaje publicado de viviendas particulares habitadas con internet en la Encuesta Intercensal 2025. El punto sigue siendo el centroide del censo."
+                : "Porcentaje de viviendas particulares habitadas con internet. Es el censo, no la encuesta de personas. El punto es un centroide, no el contorno del municipio."}
             </p>
             <input
               value={munQuery}
@@ -214,14 +238,14 @@ function MapaPage() {
                 </Suspense>
               </ClientOnly>
             ) : (
-              <p className="text-sm text-muted-foreground">Pendiente de carga: falta la fila municipal del ITER 2020.</p>
+              <p className="text-sm text-muted-foreground">Pendiente de carga: esta capa municipal todavía no tiene filas.</p>
             )}
             <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
               <span>Menos de 20%</span><span>20–35</span><span>35–50</span><span>50–65</span><span>65% o más</span>
             </div>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full text-sm">
-                <caption className="sr-only">Municipios y porcentaje de viviendas con internet en 2020</caption>
+                <caption className="sr-only">Municipios y porcentaje de viviendas con internet</caption>
                 <thead>
                   <tr className="border-b text-left text-xs text-muted-foreground">
                     <th className="py-2 pr-3">Municipio</th><th className="py-2 pr-3">Clave</th><th className="py-2 text-right">Viviendas con internet (%)</th>
@@ -243,7 +267,7 @@ function MapaPage() {
                 <p className="mt-2 text-xs text-muted-foreground">Mostrando {munListed.length} de {munPoints.length}. Acota con la entidad o con la búsqueda.</p>
               )}
             </div>
-          </VisualCard> : <p className="text-sm text-muted-foreground">Cargando la capa municipal del Censo 2020.</p>}
+          </VisualCard> : <p className="text-sm text-muted-foreground">Cargando la capa municipal.</p>}
         </section>
       </PageScroll>
     </AppShell>

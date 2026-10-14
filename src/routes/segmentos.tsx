@@ -82,8 +82,9 @@ function Segmentos() {
   const old = age.rows.find((r) => r.label.startsWith("65"));
   const oldest = age.rows.find((r) => r.label.startsWith("75"));
   const women = sex.rows.find((r) => r.label === "Mujeres");
-  const schoolRow = filters.schooling ? schooling?.rows.find((r) => r.label === filters.schooling) : undefined;
-  const schoolPurchase = filters.schooling ? schoolBuy?.rows.find((r) => r.label === filters.schooling) : undefined;
+  const schoolLabel = filters.schooling ?? schooling?.rows.find((r) => r.label === "Ninguno")?.label ?? schooling?.rows[0]?.label;
+  const schoolRow = schoolLabel ? schooling?.rows.find((r) => r.label === schoolLabel) : undefined;
+  const schoolPurchase = schoolLabel ? schoolBuy?.rows.find((r) => r.label === schoolLabel) : undefined;
   const all = [
     ...sex.rows.map((r) => ({ ...r, dim: "Sexo" })),
     ...area.rows.map((r) => ({ ...r, dim: "Ámbito" })),
@@ -101,8 +102,8 @@ function Segmentos() {
           <Persona title="Persona mayor (75+)" hint="El grupo con menor uso de internet." row={oldest} />
           <Persona title="Mujeres" hint="Brecha por sexo en uso de internet." row={women} />
           <Persona
-            title={filters.schooling ?? "Escolaridad"}
-            hint={schooling?.rows.length ? "Uso de internet según el nivel declarado en ENDUTIH." : "El cruce por escolaridad aparece cuando el microdato ya está cargado."}
+            title={schoolLabel ? `Escolaridad: ${schoolLabel}` : "Escolaridad"}
+            hint={schooling?.rows.length ? "Uso de internet según el nivel declarado en ENDUTIH. El filtro de escolaridad cambia este perfil." : "El cruce por escolaridad aparece cuando el microdato ya está cargado."}
             row={schoolRow}
             extra={schoolPurchase ? { label: "Compra por internet", row: schoolPurchase } : undefined}
           />

@@ -23,11 +23,13 @@ export function ChoroplethMap({
   metric,
   mode,
   precision,
+  breaks = CHORO_BREAKS,
 }: {
   points: OpportunityPoint[];
   metric: "users_pct" | "households_pct";
   mode: "value" | "precision";
   precision: Record<string, PrecisionFlag>;
+  breaks?: number[];
 }) {
   const el = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("maplibre-gl").Map | null>(null);
@@ -92,7 +94,7 @@ export function ChoroplethMap({
       const v = p[metric];
       let c: string = missing;
       if (mode === "precision") c = v == null ? missing : precision[p.geo_code] === "pending_microdata_recalculation" ? pending : (colors[3] ?? missing);
-      else if (v != null) c = colors[Math.min(CHORO_BREAKS.filter((b) => v >= b).length, 4)] ?? missing;
+      else if (v != null) c = colors[Math.min(breaks.filter((b) => v >= b).length, 4)] ?? missing;
       expr.push(p.geo_code, c);
       // sanitized: only numbers and DB state names (escaped)
       const name = p.geo_name.replace(/[<>&"]/g, "");
@@ -101,7 +103,7 @@ export function ChoroplethMap({
     expr.push(missing);
     map.setPaintProperty("fill", "fill-color", expr as never);
     (map as unknown as { __labels?: Record<string, string> }).__labels = labels;
-  }, [points, metric, mode, precision, ready]);
+  }, [points, metric, mode, precision, ready, breaks]);
 
   if (failed) return <p className="p-6 text-sm text-muted-foreground">El mapa no pudo cargarse. Consulta la tabla accesible.</p>;
   return <div ref={el} className="h-[340px] w-full overflow-hidden rounded-md sm:h-[440px]" role="img" aria-label="Mapa coroplético por entidad federativa" />;

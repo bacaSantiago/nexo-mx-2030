@@ -77,8 +77,12 @@ export const categoriesQuery = (year?: number, opts: { geo_code?: string; segmen
     staleTime: stale,
   });
 
-export const opportunityQuery = (year = 2025) =>
-  queryOptions({ queryKey: ["opportunity", year], queryFn: () => getOpportunityMap({ data: { year } }), staleTime: stale });
+export const opportunityQuery = (year = 2025, segment?: Record<string, string>) =>
+  queryOptions({
+    queryKey: ["opportunity", year, segment ?? null],
+    queryFn: () => getOpportunityMap({ data: segment ? { year, segment } : { year } }),
+    staleTime: stale,
+  });
 
 export const scenarioQuery = () =>
   queryOptions({ queryKey: ["scenario"], queryFn: () => getScenario({ data: {} }), staleTime: stale });
@@ -102,5 +106,9 @@ export const scenarioGridQuery = (geo_code = "00") =>
     staleTime: stale,
   });
 
-export const municipalInternetQuery = () =>
-  queryOptions({ queryKey: ["municipal-internet"], queryFn: () => getMunicipalInternet(), staleTime: stale });
+export const municipalInternetQuery = (indicator: "dwellings_with_internet_pct" | "eic_dwellings_with_internet_pct" = "dwellings_with_internet_pct") =>
+  queryOptions({
+    queryKey: ["municipal-internet", indicator],
+    queryFn: () => getMunicipalInternet({ data: { indicator } }),
+    staleTime: stale,
+  });

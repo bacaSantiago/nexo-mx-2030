@@ -16,6 +16,14 @@ import type {
 import { buildEvidence, getMetricMeta, publicDb, queryFacts, FE_SELECT } from "@/lib/analytics.server";
 
 const segmentSchema = z.record(z.string().max(40).regex(/^[a-z_]+$/), z.string().max(120)).optional();
+
+function exactSegmentKey(segment: Record<string, string> | undefined) {
+  if (!segment || !Object.keys(segment).length) return "";
+  return Object.keys(segment)
+    .sort()
+    .map((key) => `${key}=${segment[key]}`)
+    .join("|");
+}
 const dimensionSchema = z.enum(["sex", "area", "age_group", "use_type", "schooling", "income_decile"]);
 
 // ---------- get_metric ----------
@@ -189,23 +197,32 @@ export const getProblems = createServerFn({ method: "GET" })
 
 // ---------- get_opportunity_map ----------
 export const getOpportunityMap = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ year: yearSchema.default(2025) }))
+  .inputValidator(z.object({ year: yearSchema.default(2025), segment: segmentSchema }))
   .handler(async ({ data }): Promise<OpportunityPayload> => {
     const db = publicDb();
-    const [users, hh, nat, geos] = await Promise.all([
-      queryFacts(db, { metric_code: "internet_users_pct", year: data.year, geo_level: "state", segmentKeyEmpty: true }),
+    const segmentKey = exactSegmentKey(data.segment);
+    const [users, hh, natUsersRows, natHhRows, geos] = await Promise.all([
+      queryFacts(db, {
+        metric_code: "internet_users_pct",
+        year: data.year,
+        geo_level: "state",
+        segmentKey,
+        segmentKeyEmpty: segmentKey === "",
+      }),
       queryFacts(db, { metric_code: "households_with_internet_pct", year: data.year, geo_level: "state", segmentKeyEmpty: true }),
-      db
-        .from("fact_estimate")
-        .select(FE_SELECT)
-        .in("metric_code", ["internet_users_pct", "households_with_internet_pct"])
-        .eq("reference_year", data.year)
-        .eq("geo_level", "national")
-        .eq("segment_key", ""),
+      queryFacts(db, {
+        metric_code: "internet_users_pct",
+        year: data.year,
+        geo_level: "national",
+        geo_code: "00",
+        segmentKey,
+        segmentKeyEmpty: segmentKey === "",
+      }),
+      queryFacts(db, { metric_code: "households_with_internet_pct", year: data.year, geo_level: "national", geo_code: "00", segmentKeyEmpty: true }),
       db.from("dim_geography").select("geo_code, geo_name").eq("geo_level", "state").order("geo_code"),
     ]);
-    const natUsers = nat.data?.find((r) => r.metric_code === "internet_users_pct")?.estimate ?? null;
-    const natHh = nat.data?.find((r) => r.metric_code === "households_with_internet_pct")?.estimate ?? null;
+    const natUsers = natUsersRows[0]?.estimate ?? null;
+    const natHh = natHhRows[0]?.estimate ?? null;
     const u = new Map(users.map((r) => [r.geo_code, Number(r.estimate)]));
     const h = new Map(hh.map((r) => [r.geo_code, Number(r.estimate)]));
     const uPrec = new Map(users.map((r) => [r.geo_code, r.precision_flag]));
@@ -214,7 +231,7 @@ export const getOpportunityMap = createServerFn({ method: "GET" })
       const up = u.get(g.geo_code) ?? null;
       const hp = h.get(g.geo_code) ?? null;
       let quadrant: OpportunityPoint["quadrant"] = null;
-      if (up != null && hp != null && natUsers != null && natHh != null) {
+      if (segmentKey === "" && up != null && hp != null && natUsers != null && natHh != null) {
         quadrant = `${up >= Number(natUsers) ? "alto" : "bajo"}_${hp >= Number(natHh) ? "alto" : "bajo"}` as OpportunityPoint["quadrant"];
       }
       return {
@@ -233,8 +250,11 @@ export const getOpportunityMap = createServerFn({ method: "GET" })
       metric: await getMetricMeta(db, "internet_users_pct"),
       rows: [...users, ...hh],
       warnings: [
-        "Cuadrantes descriptivos respecto al promedio nacional publicado; no son una estimación de compra digital estatal.",
+        segmentKey
+          ? "El color de personas usa el segmento activo. Los hogares siguen el total estatal, sin ese corte, y el cuadrante queda vacío."
+          : "Cuadrantes descriptivos respecto al promedio nacional publicado; no son una estimación de compra digital estatal.",
         "Personas (6 años y más) y hogares son universos distintos.",
+        ...(segmentKey && !users.length ? ["Ese cruce estatal no está publicado en la malla. El mapa de personas queda sin cifra."] : []),
       ],
     });
     return {
@@ -316,19 +336,24 @@ export const getSources = createServerFn({ method: "GET" })
   .inputValidator(z.object({ q: z.string().max(80).optional() }))
   .handler(async ({ data }): Promise<SourceCatalogItem[]> => {
     const db = publicDb();
-    const [{ data: docs, error }, { data: facts }] = await Promise.all([
-      db
-        .from("source_document")
-        .select("id, source_code, source_name, title, year, tier, resource_type, official_url, purpose, status, institution, edition, universe_description, geographic_coverage, modules_used, retrieved_at, sha256, updated_at")
-        .order("tier")
-        .order("source_name"),
-      db.from("fact_estimate").select("source_id, universe").limit(2000),
-    ]);
+    const { data: docs, error } = await db
+      .from("source_document")
+      .select("id, source_code, source_name, title, year, tier, resource_type, official_url, purpose, status, institution, edition, universe_description, geographic_coverage, modules_used, retrieved_at, sha256, updated_at")
+      .order("tier")
+      .order("source_name");
     if (error) throw new Error("No fue posible leer el catálogo de fuentes");
+    const linked: { source_id: string; universe: string }[] = [];
+    for (const table of ["fact_estimate", "fact_supply"] as const) {
+      for (let from = 0; from < 30000; from += 1000) {
+        const { data: page } = await db.from(table).select("source_id, universe").range(from, from + 999);
+        linked.push(...(page ?? []));
+        if (!page || page.length < 1000) break;
+      }
+    }
     const term = data.q?.trim().toLowerCase();
     return (docs ?? [])
       .map((d) => {
-        const f = (facts ?? []).filter((x) => x.source_id === d.id);
+        const f = linked.filter((x) => x.source_id === d.id);
         return { ...d, universes: [...new Set(f.map((x) => x.universe))], estimate_count: f.length };
       })
       .filter((d) =>
@@ -418,7 +443,35 @@ export const getScenarioGrid = createServerFn({ method: "GET" })
   };
 });
 
-export const getMunicipalInternet = createServerFn({ method: "GET" }).handler(async (): Promise<MunicipalPayload> => {
+const MUNICIPAL_LAYERS = {
+  dwellings_with_internet_pct: {
+    year: 2020,
+    title: "Viviendas con internet por municipio, Censo 2020",
+    page: "ITER",
+    warnings: [
+      "Censo de Población y Vivienda 2020: viviendas particulares habitadas con internet (VPH_INTER / TVIVPARHAB) en la fila municipal del ITER. No es la ENDUTIH de personas.",
+      "Cada punto es el centroide de las localidades del municipio, ponderado por población. No es el polígono municipal.",
+    ],
+  },
+  eic_dwellings_with_internet_pct: {
+    year: 2025,
+    title: "Viviendas con internet por municipio, EIC 2025",
+    page: "Vivienda 32",
+    warnings: [
+      "Encuesta Intercensal 2025, tabulado de bienes y TIC por municipio: porcentaje de viviendas particulares habitadas que disponen de internet. Universo de viviendas, no de personas ENDUTIH.",
+      "El intervalo y el CV son los publicados por INEGI. El punto del mapa sigue siendo el centroide censal, no el polígono.",
+    ],
+  },
+} as const;
+
+export const getMunicipalInternet = createServerFn({ method: "GET" })
+  .inputValidator(
+    z.object({
+      indicator: z.enum(["dwellings_with_internet_pct", "eic_dwellings_with_internet_pct"]).default("dwellings_with_internet_pct"),
+    }),
+  )
+  .handler(async ({ data }): Promise<MunicipalPayload> => {
+  const layer = MUNICIPAL_LAYERS[data.indicator];
   const db = publicDb();
   const supply: {
     id: string;
@@ -431,29 +484,33 @@ export const getMunicipalInternet = createServerFn({ method: "GET" }).handler(as
     observed_or_modeled: string;
     unit: string;
     reference_year: number;
+    ci_low: number | null;
+    ci_high: number | null;
+    cv: number | null;
   }[] = [];
   for (let from = 0; from < 5000; from += 1000) {
-    const { data, error } = await db
+    const { data: page, error } = await db
       .from("fact_supply")
-      .select("id, geo_code, estimate, source_id, method_id, universe, precision_flag, observed_or_modeled, unit, reference_year")
-      .eq("indicator_code", "dwellings_with_internet_pct")
-      .eq("reference_year", 2020)
+      .select("id, geo_code, estimate, source_id, method_id, universe, precision_flag, observed_or_modeled, unit, reference_year, ci_low, ci_high, cv")
+      .eq("indicator_code", data.indicator)
+      .eq("reference_year", layer.year)
+      .eq("geo_level", "municipality")
       .range(from, from + 999);
     if (error) throw new Error("No fue posible leer la capa municipal");
-    supply.push(...(data ?? []));
-    if (!data || data.length < 1000) break;
+    supply.push(...(page ?? []));
+    if (!page || page.length < 1000) break;
   }
   const geos: { geo_code: string; geo_name: string; parent_geo_code: string | null }[] = [];
   for (let from = 0; from < 5000; from += 1000) {
-    const { data, error } = await db
+    const { data: page, error } = await db
       .from("dim_geography")
       .select("geo_code, geo_name, parent_geo_code")
       .eq("geo_level", "municipality")
       .order("geo_code")
       .range(from, from + 999);
     if (error) throw new Error("No fue posible leer los municipios");
-    geos.push(...(data ?? []));
-    if (!data || data.length < 1000) break;
+    geos.push(...(page ?? []));
+    if (!page || page.length < 1000) break;
   }
   const byCode = new Map(supply.map((r) => [r.geo_code, r]));
   const points = geos.flatMap((g) => {
@@ -463,11 +520,11 @@ export const getMunicipalInternet = createServerFn({ method: "GET" }).handler(as
   });
   const evidence = await buildEvidence(db, {
     fn: "get_municipal_internet",
-    title: "Viviendas con internet por municipio",
+    title: layer.title,
     metric: null,
     rows: supply.map((r) => ({
       id: r.id,
-      metric_code: "dwellings_with_internet_pct",
+      metric_code: data.indicator,
       reference_year: r.reference_year,
       universe: r.universe,
       geo_level: "municipality",
@@ -476,21 +533,18 @@ export const getMunicipalInternet = createServerFn({ method: "GET" }).handler(as
       estimate: Number(r.estimate),
       unit: r.unit,
       standard_error: null,
-      ci_low: null,
-      ci_high: null,
-      confidence_level: null,
-      cv: null,
+      ci_low: r.ci_low == null ? null : Number(r.ci_low),
+      ci_high: r.ci_high == null ? null : Number(r.ci_high),
+      confidence_level: r.ci_low == null ? null : 0.9,
+      cv: r.cv == null ? null : Number(r.cv),
       precision_flag: r.precision_flag,
       observed_or_modeled: r.observed_or_modeled,
-      source_page: "ITER",
+      source_page: layer.page,
       note: null,
       source_id: r.source_id,
       method_id: r.method_id,
     })),
-    warnings: [
-      "Censo de Población y Vivienda 2020: viviendas particulares habitadas con internet (VPH_INTER / TVIVPARHAB) en la fila municipal del ITER. No es la ENDUTIH de personas y no sigue el año del filtro.",
-      "Cada punto es el centroide de las localidades del municipio, ponderado por población. No hay polígono municipal, ni unidades DENUE, ni sucursales CNBV, ni cobertura IFT.",
-    ],
+    warnings: [...layer.warnings],
   });
   return { points, evidence };
 });

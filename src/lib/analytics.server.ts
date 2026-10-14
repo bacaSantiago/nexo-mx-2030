@@ -186,6 +186,7 @@ export async function queryFacts(
     geo_level?: string;
     geo_code?: string;
     segment?: Record<string, string>;
+    segmentKey?: string;
     segmentKeyEmpty?: boolean;
     hasDimension?: string;
   },
@@ -194,7 +195,8 @@ export async function queryFacts(
   if (q.year) req = req.eq("reference_year", q.year);
   if (q.geo_level) req = req.eq("geo_level", q.geo_level);
   if (q.geo_code) req = req.eq("geo_code", q.geo_code);
-  if (q.segment && Object.keys(q.segment).length) req = req.contains("segment_json", q.segment);
+  if (q.segmentKey != null) req = req.eq("segment_key", q.segmentKey);
+  else if (q.segment && Object.keys(q.segment).length) req = req.contains("segment_json", q.segment);
   if (q.segmentKeyEmpty) req = req.eq("segment_key", "");
   const { data, error } = await req.order("reference_year").limit(1000);
   if (error) throw new Error("No fue posible leer las estimaciones");
