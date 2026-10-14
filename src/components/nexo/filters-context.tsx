@@ -1,3 +1,4 @@
+import type React from "react";
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 
 export type GlobalFilterState = {
@@ -55,7 +56,8 @@ type Ctx = {
   applyTour: (id: TourId) => void;
 };
 
-const FiltersContext = createContext<Ctx | null>(null);
+const g = globalThis as unknown as { __nexoFiltersCtx?: React.Context<Ctx | null> };
+const FiltersContext = (g.__nexoFiltersCtx ??= createContext<Ctx | null>(null));
 
 export function FiltersProvider({ children }: { children: ReactNode }) {
   const [filters, setFilters] = useState(initial);
