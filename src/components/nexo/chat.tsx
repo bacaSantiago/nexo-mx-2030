@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { ArrowUp, Square, BarChart3, FileSearch, Sparkles } from "lucide-react";
+import { ArrowUp, Printer, Square, BarChart3, FileSearch, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { EvidencePayload } from "@/lib/analytics/types";
 import { formatValue } from "@/lib/format";
 import { PrecisionBadge, ObservedBadge } from "./badges";
+import { printBrief } from "@/lib/export";
+import { useGlobalFilters } from "./filters-context";
 
 export type ChatMsg = {
   id: string;
@@ -79,6 +81,7 @@ export function PromptSuggestions({ items, onPick }: { items: Suggestion[]; onPi
 }
 
 export function ChatMessage({ msg, onShowEvidence }: { msg: ChatMsg; onShowEvidence?: (e: EvidencePayload) => void }) {
+  const { filters } = useGlobalFilters();
   if (msg.role === "user")
     return (
       <div className="flex justify-end">
@@ -129,11 +132,22 @@ export function ChatMessage({ msg, onShowEvidence }: { msg: ChatMsg; onShowEvide
             <p className="mt-2 text-xs text-muted-foreground">
               {e.sources.map((s) => s.source_name).join(", ")} · {e.universe}
             </p>
-            {onShowEvidence && (
-              <Button variant="outline" size="sm" className="mt-3" onClick={() => onShowEvidence(e)}>
-                <FileSearch aria-hidden /> Ver evidencia
-              </Button>
-            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {onShowEvidence && (
+                <Button variant="outline" size="sm" onClick={() => onShowEvidence(e)}>
+                  <FileSearch aria-hidden /> Ver evidencia
+                </Button>
+              )}
+              {msg.status === "done" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => printBrief({ title: e.title, answer: msg.content, evidence: [e], filters: filters as unknown as Record<string, string | number | null> })}
+                >
+                  <Printer aria-hidden /> Informe
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </div>
