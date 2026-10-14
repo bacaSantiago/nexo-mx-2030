@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { ArrowUp, BarChart3, FileSearch, Sparkles } from "lucide-react";
+import { ArrowUp, Square, BarChart3, FileSearch, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { EvidencePayload } from "@/lib/analytics/types";
@@ -141,7 +141,7 @@ export function ChatMessage({ msg, onShowEvidence }: { msg: ChatMsg; onShowEvide
   );
 }
 
-export function ChatComposer({ onSend, disabled }: { onSend: (text: string) => void; disabled?: boolean }) {
+export function ChatComposer({ onSend, disabled, onStop }: { onSend: (text: string) => void; disabled?: boolean; onStop?: () => void }) {
   const [value, setValue] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
   const submit = (ev?: FormEvent) => {
@@ -180,9 +180,15 @@ export function ChatComposer({ onSend, disabled }: { onSend: (text: string) => v
           placeholder="Pregunta sobre adopción, barreras o brechas del comercio digital…"
           className="max-h-40 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
         />
-        <Button type="submit" size="icon" disabled={disabled || !value.trim()} aria-label="Enviar pregunta" className="shrink-0 rounded-lg">
-          <ArrowUp />
-        </Button>
+        {onStop ? (
+          <Button type="button" size="icon" variant="secondary" onClick={onStop} aria-label="Detener respuesta" className="shrink-0 rounded-lg">
+            <Square />
+          </Button>
+        ) : (
+          <Button type="submit" size="icon" disabled={disabled || !value.trim()} aria-label="Enviar pregunta" className="shrink-0 rounded-lg">
+            <ArrowUp />
+          </Button>
+        )}
       </div>
       <p className="mx-auto mt-1.5 max-w-3xl text-center text-[11px] text-muted-foreground">
         Las cifras provienen solo de datos oficiales revisados. Asociación no implica causalidad.

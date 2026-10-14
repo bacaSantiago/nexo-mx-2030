@@ -17,9 +17,9 @@ export function unitLabel(unit: string): string {
 }
 
 export const OOM_LABEL: Record<ObservedOrModeled, string> = {
-  observed: "Observado",
+  observed: "Dato observado",
   modeled: "Estimación modelada",
-  imputed: "Ingreso/decil imputado",
+  imputed: "Ingreso imputado",
   scenario: "Escenario",
 };
 
