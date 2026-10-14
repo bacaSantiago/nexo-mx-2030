@@ -176,6 +176,20 @@ export type MunicipalPayload = {
   evidence: EvidencePayload;
 };
 
+export type AccessRow = {
+  geo_code: string;
+  geo_name: string | null;
+  branches: number | null;
+  atms: number | null;
+  correspondents: number | null;
+  pos: number | null;
+};
+
+export type FinancialAccessPayload = {
+  evidence: EvidencePayload;
+  rows: AccessRow[];
+};
+
 export type ScenarioGridPayload = {
   definitions: { scenario_code: string; scenario_name: string; description: string; assumptions: { parameters?: import("@/lib/scenarios").ScenarioParam[] } }[];
   rows: import("@/lib/scenarios").ScenarioRow[];

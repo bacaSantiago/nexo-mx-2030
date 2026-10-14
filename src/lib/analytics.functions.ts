@@ -3,6 +3,7 @@ import { z } from "zod";
 import { codeSchema, geoCodeSchema, yearSchema } from "@/lib/analytics/types";
 import type {
   FilterOptions,
+  FinancialAccessPayload,
   InterventionItem,
   MethodologyNote,
   MunicipalPayload,
@@ -547,4 +548,53 @@ export const getMunicipalInternet = createServerFn({ method: "GET" })
     warnings: [...layer.warnings],
   });
   return { points, evidence };
+});
+
+const ACCESS_METRICS = [
+  ["cnbv_branches_per_10k_adults", "branches"],
+  ["cnbv_atms_per_10k_adults", "atms"],
+  ["cnbv_correspondents_per_10k_adults", "correspondents"],
+  ["cnbv_pos_terminals_per_10k_adults", "pos"],
+] as const;
+
+export const getFinancialAccess = createServerFn({ method: "GET" }).handler(async (): Promise<FinancialAccessPayload> => {
+  const db = publicDb();
+  const metric = await getMetricMeta(db, "cnbv_branches_per_10k_adults");
+  const grouped = new Map<string, FinancialAccessPayload["rows"][number]>();
+  let branchRows: Awaited<ReturnType<typeof queryFacts>> = [];
+  for (const [code, key] of ACCESS_METRICS) {
+    const [national, states] = await Promise.all([
+      queryFacts(db, { metric_code: code, year: 2026, geo_level: "national", geo_code: "00", segmentKeyEmpty: true }),
+      queryFacts(db, { metric_code: code, year: 2026, geo_level: "state", segmentKeyEmpty: true }),
+    ]);
+    const rows = [...national, ...states];
+    if (key === "branches") branchRows = rows;
+    for (const row of rows) {
+      const current = grouped.get(row.geo_code) ?? {
+        geo_code: row.geo_code,
+        geo_name: null,
+        branches: null,
+        atms: null,
+        correspondents: null,
+        pos: null,
+      };
+      current[key] = Number(row.estimate);
+      grouped.set(row.geo_code, current);
+    }
+  }
+  const evidence = await buildEvidence(db, {
+    fn: "get_financial_access",
+    title: "Sucursales por 10 mil adultos",
+    metric,
+    rows: branchRows,
+    warnings: [
+      "Cociente de sucursales y población adulta publicadas en la misma fila de la CNBV, cierre a marzo 2026. No es una estimación muestral y no trae intervalo.",
+      "Cajeros, corresponsales y terminales punto de venta usan el mismo cociente y la misma hoja.",
+    ],
+  });
+  const names = new Map(evidence.rows.map((row) => [row.geo_code, row.geo_name]));
+  const rows = [...grouped.values()]
+    .map((row) => ({ ...row, geo_name: names.get(row.geo_code) ?? row.geo_code }))
+    .sort((a, b) => (a.geo_code === "00" ? -1 : b.geo_code === "00" ? 1 : (b.branches ?? -1) - (a.branches ?? -1)));
+  return { evidence, rows };
 });

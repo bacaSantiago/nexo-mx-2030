@@ -8,6 +8,7 @@ import {
   getMethodology,
   getMetric,
   getOpportunityMap,
+  getFinancialAccess,
   getMunicipalInternet,
   getScenario,
   getScenarioGrid,
@@ -103,6 +104,13 @@ export const scenarioGridQuery = (geo_code = "00") =>
   queryOptions({
     queryKey: ["scenario-grid", geo_code],
     queryFn: () => getScenarioGrid({ data: { geo_code } }),
+    staleTime: stale,
+  });
+
+export const financialAccessQuery = () =>
+  queryOptions({
+    queryKey: ["financial-access"],
+    queryFn: () => getFinancialAccess(),
     staleTime: stale,
   });
 

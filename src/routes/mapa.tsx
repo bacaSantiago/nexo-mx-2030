@@ -8,7 +8,7 @@ import { evidenceSummary } from "@/components/nexo/EvidenceCanvas";
 import { LoadingState } from "@/components/nexo/states";
 import { headFor, RouteError, RouteNotFound, RoutePending } from "@/components/nexo/route-helpers";
 import { segmentFromFilters, useGlobalFilters } from "@/components/nexo/filters-context";
-import { municipalInternetQuery, opportunityQuery } from "@/lib/queries";
+import { financialAccessQuery, municipalInternetQuery, opportunityQuery } from "@/lib/queries";
 import type { PrecisionFlag } from "@/lib/analytics/types";
 import { cn } from "@/lib/utils";
 
@@ -71,6 +71,7 @@ function MapaPage() {
   const [munQuery, setMunQuery] = useState("");
   const [munFocus, setMunFocus] = useState<string | null>(null);
   const municipal = useQuery(municipalInternetQuery(munLayer)).data;
+  const access = useQuery(financialAccessQuery()).data;
   const precision = useMemo(() => {
     const out: Record<string, PrecisionFlag> = {};
     for (const p of data?.points ?? []) {
@@ -268,6 +269,54 @@ function MapaPage() {
               )}
             </div>
           </VisualCard> : <p className="text-sm text-muted-foreground">Cargando la capa municipal.</p>}
+        </section>
+
+        <section className="mt-8">
+          {access ? (
+            <VisualCard
+              evidence={access.evidence}
+              title="Puntos de acceso financiero por 10 mil adultos"
+              summary={access.rows.length ? `${access.rows.filter((row) => row.geo_code !== "00").length} entidades, cierre a marzo 2026.` : "Pendiente de carga."}
+              actions={null}
+            >
+              <p className="mb-3 text-xs text-muted-foreground">
+                Cada cifra divide los puntos publicados entre la población adulta de la misma fila. No sigue el filtro de sexo, edad o escolaridad. Los conteos municipales están en la base y no recolorean este mapa.
+              </p>
+              {access.rows.length ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <caption className="sr-only">Sucursales, cajeros, corresponsales y TPV por cada 10 mil adultos</caption>
+                    <thead>
+                      <tr className="border-b text-left text-xs text-muted-foreground">
+                        <th className="py-2 pr-3">Entidad</th>
+                        <th className="py-2 pr-3 text-right">Sucursales</th>
+                        <th className="py-2 pr-3 text-right">Cajeros</th>
+                        <th className="py-2 pr-3 text-right">Corresponsales</th>
+                        <th className="py-2 text-right">TPV</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {access.rows
+                        .filter((row) => !filters.geo_code || row.geo_code === "00" || row.geo_code === filters.geo_code)
+                        .map((row) => (
+                          <tr key={row.geo_code} className="border-b last:border-0">
+                            <td className="py-1.5 pr-3">{row.geo_name}</td>
+                            <td className="tabular py-1.5 pr-3 text-right">{row.branches ?? "—"}</td>
+                            <td className="tabular py-1.5 pr-3 text-right">{row.atms ?? "—"}</td>
+                            <td className="tabular py-1.5 pr-3 text-right">{row.correspondents ?? "—"}</td>
+                            <td className="tabular py-1.5 text-right">{row.pos ?? "—"}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Pendiente de carga: la base de inclusión de marzo 2026 todavía no está aplicada.</p>
+              )}
+            </VisualCard>
+          ) : (
+            <p className="text-sm text-muted-foreground">Cargando puntos de acceso financiero.</p>
+          )}
         </section>
       </PageScroll>
     </AppShell>
