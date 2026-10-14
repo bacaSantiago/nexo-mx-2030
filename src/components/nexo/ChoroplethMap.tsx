@@ -46,6 +46,7 @@ export function ChoroplethMap({
         if (cancelled || !el.current) return;
         const map = new maplibre.Map({
           container: el.current,
+          canvasContextAttributes: { preserveDrawingBuffer: true },
           style: { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": cssVar("--background") } }] },
           bounds: [[-118.5, 14.3], [-86.5, 32.8]],
           fitBoundsOptions: { padding: 12 },

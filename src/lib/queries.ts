@@ -9,6 +9,7 @@ import {
   getMetric,
   getOpportunityMap,
   getScenario,
+  getScenarioGrid,
   getSources,
   rankGeographies,
 } from "@/lib/analytics.functions";
@@ -59,3 +60,6 @@ export const methodologyQuery = () =>
 
 export const filterOptionsQuery = () =>
   queryOptions({ queryKey: ["filter-options"], queryFn: () => getFilterOptions(), staleTime: stale });
+
+export const scenarioGridQuery = () =>
+  queryOptions({ queryKey: ["scenario-grid"], queryFn: () => getScenarioGrid(), staleTime: stale });

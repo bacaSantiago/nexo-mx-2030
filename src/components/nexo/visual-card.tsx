@@ -1,5 +1,9 @@
 import { Info, AlertTriangle } from "lucide-react";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
+import { Download } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { exportCsv, exportPng, printBrief } from "@/lib/export";
+import { useGlobalFilters } from "./filters-context";
 import type { EvidencePayload } from "@/lib/analytics/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -86,6 +90,7 @@ export function VisualCard({
   actions?: ReactNode;
 }) {
   const unit = evidence.rows[0]?.unit ?? evidence.metric?.default_unit;
+  const bodyRef = useRef<HTMLDivElement>(null);
   const source = evidence.sources.map((s) => s.source_name).join(", ");
   return (
     <section
@@ -101,10 +106,11 @@ export function VisualCard({
         </div>
         <div className="flex items-center gap-1">
           {actions}
+          <ExportMenu evidence={evidence} target={bodyRef} summary={summary} />
           <HowCalculated evidence={evidence} />
         </div>
       </header>
-      <div className="min-w-0 flex-1 p-4">{children}</div>
+      <div ref={bodyRef} className="min-w-0 flex-1 p-4">{children}</div>
       <footer className="space-y-1 border-t px-4 py-3 text-xs text-muted-foreground">
         <p>
           <span className="font-semibold text-foreground">Fuente:</span> {source || "Pendiente de carga"}
@@ -118,5 +124,24 @@ export function VisualCard({
         </details>
       </footer>
     </section>
+  );
+}
+
+export function ExportMenu({ evidence, target, summary }: { evidence: EvidencePayload; target: React.RefObject<HTMLElement | null>; summary?: string }) {
+  const { filters } = useGlobalFilters();
+  const f = filters as unknown as Record<string, string | number | null>;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" aria-label="Exportar">
+          <Download aria-hidden /> Exportar
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem disabled={!evidence.rows.length} onSelect={() => exportCsv(evidence, f)}>Datos (CSV)</DropdownMenuItem>
+        <DropdownMenuItem disabled={!evidence.rows.length} onSelect={() => target.current && void exportPng(target.current, evidence, f)}>Imagen (PNG)</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => printBrief({ title: evidence.title, answer: summary, evidence: [evidence], filters: f })}>Informe para imprimir</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -8,6 +8,7 @@ import type {
   OpportunityPayload,
   OpportunityPoint,
   ScenarioPayload,
+  ScenarioGridPayload,
   SourceCatalogItem,
 } from "@/lib/analytics/types";
 import { buildEvidence, getMetricMeta, publicDb, queryFacts, FE_SELECT } from "@/lib/analytics.server";
@@ -269,7 +270,7 @@ export const getInterventions = createServerFn({ method: "GET" })
   .inputValidator(z.object({ barrier_code: codeSchema.optional() }))
   .handler(async ({ data }): Promise<InterventionItem[]> => {
     const db = publicDb();
-    let q = db.from("intervention").select("intervention_code, intervention_name, barrier_code, description, implementation_actors");
+    let q = db.from("intervention").select("intervention_code, intervention_name, barrier_code, description, implementation_actors, module_code, kpis, evaluation_design");
     if (data.barrier_code) q = q.eq("barrier_code", data.barrier_code);
     const { data: items, error } = await q;
     if (error) throw new Error("No fue posible leer el portafolio de intervenciones");
@@ -292,7 +293,7 @@ export const getSources = createServerFn({ method: "GET" })
     const [{ data: docs, error }, { data: facts }] = await Promise.all([
       db
         .from("source_document")
-        .select("id, source_code, source_name, title, year, tier, resource_type, official_url, purpose, status")
+        .select("id, source_code, source_name, title, year, tier, resource_type, official_url, purpose, status, institution, edition, universe_description, geographic_coverage, modules_used, retrieved_at, sha256, updated_at")
         .order("tier")
         .order("source_name"),
       db.from("fact_estimate").select("source_id, universe").limit(2000),
@@ -347,5 +348,36 @@ export const getFilterOptions = createServerFn({ method: "GET" }).handler(async 
     years: [...new Set((years ?? []).map((y) => y.reference_year))].sort((a, b) => b - a),
     geographies: geos ?? [],
     segments,
+  };
+});
+
+// ---------- get_scenario_grid (precomputed results only; no fitting) ----------
+export const getScenarioGrid = createServerFn({ method: "GET" }).handler(async (): Promise<ScenarioGridPayload> => {
+  const db = publicDb();
+  const [{ data: defs, error }, { data: rows }, { data: metrics }] = await Promise.all([
+    db.from("scenario_definition").select("scenario_code, scenario_name, description, assumptions").eq("is_active", true).order("scenario_code"),
+    db
+      .from("scenario_result")
+      .select("id, scenario_code, metric_code, reference_year, geo_level, geo_code, segment_code, component_code, estimate, p10, p90, unit, assumptions_version, assumption_values")
+      .limit(5000),
+    db.from("dim_metric").select("metric_code, metric_label, default_unit, universe").like("metric_code", "scenario_%"),
+  ]);
+  if (error) throw new Error("No fue posible leer los escenarios");
+  const ids = (rows ?? []).map((r) => r.id);
+  const { data: lineage } = ids.length
+    ? await db.from("source_lineage").select("fact_id, source_page, transformation, loaded_version, source_id").eq("fact_table", "scenario_result").in("fact_id", ids.slice(0, 500))
+    : { data: [] };
+  return {
+    definitions: (defs ?? []).map((d) => ({ ...d, assumptions: d.assumptions as unknown })),
+    rows: (rows ?? []).map((r) => ({
+      ...r,
+      estimate: Number(r.estimate),
+      p10: r.p10 == null ? null : Number(r.p10),
+      p90: r.p90 == null ? null : Number(r.p90),
+      assumption_values: (r.assumption_values ?? {}) as Record<string, number>,
+    })),
+    metrics: metrics ?? [],
+    lineage: (lineage ?? []).map((l) => ({ fact_id: l.fact_id, transformation: l.transformation, loaded_version: l.loaded_version, source_page: l.source_page })),
+    generated_at: new Date().toISOString(),
   };
 });
