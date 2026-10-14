@@ -1,17 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import { AppShell } from "@/components/nexo/AppShell";
 import { ChatComposer, ChatThread, type ChatMsg, type Suggestion } from "@/components/nexo/chat";
 import { EvidenceCanvas, type CanvasState } from "@/components/nexo/EvidenceCanvas";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
-import { useIsMobile } from "@/hooks/use-mobile";
 import type { EvidencePayload } from "@/lib/analytics/types";
 import { barriersQuery, categoriesQuery, rankQuery, segmentsQuery } from "@/lib/queries";
-import { getScenario } from "@/lib/analytics.functions";
-import { compareSegments } from "@/lib/analytics.functions";
+import { compareSegments, getScenario } from "@/lib/analytics.functions";
 import { formatValue } from "@/lib/format";
 
 export const Route = createFileRoute("/")({
@@ -77,9 +75,21 @@ function answerFor(id: string, e: EvidencePayload): string {
   return "";
 }
 
+function useBelowLg() {
+  const [v, setV] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const on = () => setV(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return v;
+}
+
 function ChatWorkspace() {
   const qc = useQueryClient();
-  const isMobile = useIsMobile();
+  const isMobile = useBelowLg();
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [canvas, setCanvas] = useState<CanvasState>({ status: "idle" });
   const [canvasOpen, setCanvasOpen] = useState(true);
