@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791939131760,
+      "tag": "0000_nexo_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791939241069,
+      "tag": "0001_nexo_official_seed",
+      "breakpoints": true
+    }
+  ]
+}
