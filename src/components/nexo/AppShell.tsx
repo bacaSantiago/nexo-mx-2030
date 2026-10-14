@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { Button } from "@/components/ui/button";
 import { Brand, NavigationRail, NavLinks } from "./NavigationRail";
 import { GlobalFilters } from "./GlobalFilters";
+import { GuidedTours } from "./GuidedTours";
 
 export function AppShell({ children, toolbar }: { children: ReactNode; toolbar?: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -36,6 +37,7 @@ export function AppShell({ children, toolbar }: { children: ReactNode; toolbar?:
             </div>
             {toolbar}
           </header>
+          <GuidedTours />
           <div className="min-h-0 flex-1">{children}</div>
         </div>
       </div>

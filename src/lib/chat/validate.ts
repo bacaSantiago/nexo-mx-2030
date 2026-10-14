@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { EvidencePayload } from "@/lib/analytics/types";
+import { UNMEASURED_ANSWER } from "./intent";
 import { formatValue } from "@/lib/format";
 import { normalizeText } from "./guard";
 
@@ -83,6 +84,7 @@ export function buildCitations(answer: string, e: EvidencePayload | null) {
 
 /** Fully deterministic fallback grounded only in the payload. */
 export function deterministicAnswer(e: EvidencePayload | null, missing?: string): string {
+  if (missing === "unmeasured") return UNMEASURED_ANSWER;
   if (!e || !e.rows.length) {
     return missing
       ? `No hay datos cargados para responder: falta ${missing}. No estimo ni completo cifras ausentes.`

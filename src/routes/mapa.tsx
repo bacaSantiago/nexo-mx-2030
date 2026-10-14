@@ -8,7 +8,7 @@ import { evidenceSummary } from "@/components/nexo/EvidenceCanvas";
 import { LoadingState } from "@/components/nexo/states";
 import { headFor, RouteError, RouteNotFound, RoutePending } from "@/components/nexo/route-helpers";
 import { segmentFromFilters, useGlobalFilters } from "@/components/nexo/filters-context";
-import { financialAccessQuery, municipalInternetQuery, opportunityQuery } from "@/lib/queries";
+import { financialAccessQuery, logisticsQuery, municipalInternetQuery, opportunityQuery } from "@/lib/queries";
 import type { PrecisionFlag } from "@/lib/analytics/types";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +72,7 @@ function MapaPage() {
   const [munFocus, setMunFocus] = useState<string | null>(null);
   const municipal = useQuery(municipalInternetQuery(munLayer)).data;
   const access = useQuery(financialAccessQuery()).data;
+  const logistics = useQuery(logisticsQuery()).data;
   const precision = useMemo(() => {
     const out: Record<string, PrecisionFlag> = {};
     for (const p of data?.points ?? []) {
@@ -222,8 +223,8 @@ function MapaPage() {
             </div>
             <p className="mb-3 text-xs text-muted-foreground">
               {munLayer === "eic_dwellings_with_internet_pct"
-                ? "Porcentaje publicado de viviendas particulares habitadas con internet en la Encuesta Intercensal 2025. El punto sigue siendo el centroide del censo."
-                : "Porcentaje de viviendas particulares habitadas con internet. Es el censo, no la encuesta de personas. El punto es un centroide, no el contorno del municipio."}
+                ? "Porcentaje publicado de viviendas particulares habitadas con internet en la Encuesta Intercensal 2025. El color rellena el polígono municipal del Marco Geoestadístico integrado 2025, simplificado para la web. La entidad de la cabecera acota el mapa. El año y el segmento de personas no cambian esta capa de viviendas."
+                : "Porcentaje de viviendas particulares habitadas con internet. Es el censo, no la encuesta de personas. El color rellena el polígono municipal del Marco Geoestadístico integrado 2025. La entidad de la cabecera acota el mapa. El año y el segmento de personas no cambian esta capa."}
             </p>
             <input
               value={munQuery}
@@ -269,6 +270,54 @@ function MapaPage() {
               )}
             </div>
           </VisualCard> : <p className="text-sm text-muted-foreground">Cargando la capa municipal.</p>}
+        </section>
+
+        <section className="mt-8">
+          {logistics ? (
+            <VisualCard
+              evidence={logistics.evidence}
+              title="Mensajería y carga en municipios cabecera"
+              summary={logistics.rows.length ? `${logistics.rows.length} municipios prioritarios. Conteo DENUE, no ventas por internet.` : "Pendiente de carga."}
+              actions={null}
+            >
+              <p className="mb-3 text-xs text-muted-foreground">
+                Cabecera de cada entidad y las 16 alcaldías. La entidad de la cabecera acota la tabla. El año del filtro no cambia este conteo: la consulta DENUE es la vigente y la población adulta del denominador es la de marzo de 2026. El segmento de personas no aplica a establecimientos.
+              </p>
+              {logistics.rows.length ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <caption className="sr-only">Establecimientos de mensajería, carga y almacenamiento, y su densidad por 10 mil adultos</caption>
+                    <thead>
+                      <tr className="border-b text-left text-xs text-muted-foreground">
+                        <th className="py-2 pr-3">Municipio</th>
+                        <th className="py-2 pr-3 text-right">Mensajería</th>
+                        <th className="py-2 pr-3 text-right">Carga</th>
+                        <th className="py-2 pr-3 text-right">Almacén</th>
+                        <th className="py-2 text-right">Mensajería / 10 mil</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {logistics.rows
+                        .filter((row) => !filters.geo_code || row.parent_geo_code === filters.geo_code)
+                        .map((row) => (
+                          <tr key={row.geo_code} className="border-b last:border-0">
+                            <td className="py-1.5 pr-3">{row.geo_name ?? row.geo_code}</td>
+                            <td className="tabular py-1.5 pr-3 text-right">{row.courier ?? "—"}</td>
+                            <td className="tabular py-1.5 pr-3 text-right">{row.freight ?? "—"}</td>
+                            <td className="tabular py-1.5 pr-3 text-right">{row.warehousing ?? "—"}</td>
+                            <td className="tabular py-1.5 text-right">{row.courier_per_10k == null ? "—" : row.courier_per_10k.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Pendiente de carga: el conteo municipal de mensajería y carga todavía no está aplicado.</p>
+              )}
+            </VisualCard>
+          ) : (
+            <p className="text-sm text-muted-foreground">Cargando establecimientos logísticos.</p>
+          )}
         </section>
 
         <section className="mt-8">

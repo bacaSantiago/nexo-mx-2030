@@ -5,7 +5,7 @@ import type { Database } from "@/integrations/supabase/types";
 import type { EvidencePayload } from "@/lib/analytics/types";
 import { buildEvidence, getMetricMeta, publicDb, queryFacts, type Db } from "@/lib/analytics.server";
 import { chatRequestSchema, MAX_BODY_BYTES, sanitizeMarkdown, screenMessage, sessionTokenSchema } from "./guard";
-import { classifyIntent, type Intent } from "./intent";
+import { classifyIntent, UNMEASURED_ANSWER, type Intent } from "./intent";
 import { buildCitations, chatResponseSchema, deterministicAnswer, evidenceLines, validateAnswer, type MethodNoteLite } from "./validate";
 
 const MODEL = "openai/gpt-6-astra";
@@ -204,6 +204,11 @@ export async function handleNexoChat(request: Request): Promise<Response> {
           answer = screened.message;
           validated = true;
           emit({ type: "meta", intent: "rejected", params: {}, evidence: null, notes: [] });
+        } else if (it.params.missing === "unmeasured") {
+          answer = UNMEASURED_ANSWER;
+          validated = true;
+          evidence = null;
+          emit({ type: "meta", intent: it.intent, params: it.params, evidence: null, notes: [] });
         } else {
           [evidence, notes] = await Promise.all([runIntent(db, it, filters.year ?? undefined), retrieveNotes(db, it)]);
           emit({ type: "meta", intent: it.intent, params: it.params, evidence, notes: notes.map((n) => ({ note_code: n.note_code, title: n.title })) });

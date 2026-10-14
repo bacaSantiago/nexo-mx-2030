@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { screenMessage, sanitizeMarkdown } from "@/lib/chat/guard";
-import { classifyIntent } from "@/lib/chat/intent";
+import { classifyIntent, UNMEASURED_ANSWER } from "@/lib/chat/intent";
 import { deterministicAnswer, validateAnswer } from "@/lib/chat/validate";
 import type { EvidencePayload } from "@/lib/analytics/types";
 
@@ -40,10 +40,16 @@ describe("guard", () => {
 });
 
 describe("intent", () => {
-  it("flags unsupported metrics with what is missing", () => {
-    const r = classifyIntent("¿Cuál es el ingreso por decil de los compradores?");
-    expect(r.intent).toBe("unsupported");
-    expect(r.params.missing).toMatch(/ingreso/);
+  it("routes loaded income cuts and refuses an unmeasured universe", () => {
+    expect(classifyIntent("¿Cuál es el ingreso por decil de los compradores?")).toMatchObject({
+      intent: "compare_segments",
+      params: { dimension: "income_decile" },
+    });
+    const geos = [{ geo_code: "07", geo_name: "Chiapas" }];
+    const missing = classifyIntent("¿cuál es la tasa de adopción de personas de 80 años en Chiapas que pagan con cripto?", geos);
+    expect(missing.intent).toBe("unsupported");
+    expect(missing.params.missing).toBe("unmeasured");
+    expect(classifyIntent("personas de 6 a 14 años con internet").params.dimension).toBe("age_group");
   });
   it("routes to allowlisted functions", () => {
     expect(classifyIntent("¿Por qué no compran por internet?").intent).toBe("get_barriers");
@@ -66,6 +72,8 @@ describe("validation", () => {
   });
   it("rejects numbers when evidence is missing", () => {
     expect(validateAnswer("El 55.5 % compra en línea.", null).length).toBeGreaterThan(0);
-    expect(deterministicAnswer(null, "cortes por escolaridad")).toMatch(/falta cortes por escolaridad/);
+    expect(deterministicAnswer(null, "gasto en compras en línea")).toMatch(/falta gasto en compras/);
+    expect(deterministicAnswer(null, "unmeasured")).toBe(UNMEASURED_ANSWER);
+    expect(deterministicAnswer(ev, "unmeasured")).toBe(UNMEASURED_ANSWER);
   });
 });

@@ -20,25 +20,67 @@ const initial: GlobalFilterState = {
   income_decile: null,
 };
 
+export type TourId = "finanzas" | "genero" | "rural";
+
+export const TOURS: { id: TourId; title: string; to: "/segmentos" | "/explorar"; detail: string; filters: GlobalFilterState }[] = [
+  {
+    id: "finanzas",
+    title: "Vulnerabilidad financiera",
+    to: "/segmentos",
+    detail: "Deja el decil 1 de ingreso imputado y abre la comparación dentro de ese decil.",
+    filters: { ...initial, year: 2025, income_decile: "Decil 1" },
+  },
+  {
+    id: "genero",
+    title: "Brecha de género",
+    to: "/segmentos",
+    detail: "Limpia el filtro de sexo para que hombres y mujeres se vean juntos.",
+    filters: { ...initial, year: 2025 },
+  },
+  {
+    id: "rural",
+    title: "Brecha rural-urbana",
+    to: "/explorar",
+    detail: "Limpia el ámbito y abre el panorama urbano-rural.",
+    filters: { ...initial, year: 2025 },
+  },
+];
+
 type Ctx = {
   filters: GlobalFilterState;
   setFilter: <K extends keyof GlobalFilterState>(k: K, v: GlobalFilterState[K]) => void;
   reset: () => void;
   activeCount: number;
+  tour: TourId | null;
+  applyTour: (id: TourId) => void;
 };
 
 const FiltersContext = createContext<Ctx | null>(null);
 
 export function FiltersProvider({ children }: { children: ReactNode }) {
   const [filters, setFilters] = useState(initial);
+  const [tour, setTour] = useState<TourId | null>(null);
   const value = useMemo<Ctx>(
     () => ({
       filters,
-      setFilter: (k, v) => setFilters((f) => ({ ...f, [k]: v })),
-      reset: () => setFilters(initial),
+      setFilter: (k, v) => {
+        setTour(null);
+        setFilters((f) => ({ ...f, [k]: v }));
+      },
+      reset: () => {
+        setTour(null);
+        setFilters(initial);
+      },
       activeCount: Object.values(filters).filter((v) => v != null).length,
+      tour,
+      applyTour: (id) => {
+        const next = TOURS.find((item) => item.id === id);
+        if (!next) return;
+        setTour(id);
+        setFilters(next.filters);
+      },
     }),
-    [filters],
+    [filters, tour],
   );
   return <FiltersContext.Provider value={value}>{children}</FiltersContext.Provider>;
 }

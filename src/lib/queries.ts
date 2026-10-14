@@ -9,6 +9,7 @@ import {
   getMetric,
   getOpportunityMap,
   getFinancialAccess,
+  getLogisticsMunicipal,
   getMunicipalInternet,
   getScenario,
   getScenarioGrid,
@@ -111,6 +112,13 @@ export const financialAccessQuery = () =>
   queryOptions({
     queryKey: ["financial-access"],
     queryFn: () => getFinancialAccess(),
+    staleTime: stale,
+  });
+
+export const logisticsQuery = () =>
+  queryOptions({
+    queryKey: ["logistics-municipal"],
+    queryFn: () => getLogisticsMunicipal(),
     staleTime: stale,
   });
 

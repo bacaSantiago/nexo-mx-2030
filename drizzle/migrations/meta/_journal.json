@@ -64,6 +64,13 @@
       "when": 1791968000000,
       "tag": "0008_access_enif_denue",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791974000000,
+      "tag": "0009_denue_logistics",
+      "breakpoints": true
     }
   ]
 }

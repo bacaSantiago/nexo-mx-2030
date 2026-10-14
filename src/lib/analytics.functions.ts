@@ -4,6 +4,7 @@ import { codeSchema, geoCodeSchema, yearSchema } from "@/lib/analytics/types";
 import type {
   FilterOptions,
   FinancialAccessPayload,
+  LogisticsPayload,
   InterventionItem,
   MethodologyNote,
   MunicipalPayload,
@@ -596,5 +597,62 @@ export const getFinancialAccess = createServerFn({ method: "GET" }).handler(asyn
   const rows = [...grouped.values()]
     .map((row) => ({ ...row, geo_name: names.get(row.geo_code) ?? row.geo_code }))
     .sort((a, b) => (a.geo_code === "00" ? -1 : b.geo_code === "00" ? 1 : (b.branches ?? -1) - (a.branches ?? -1)));
+  return { evidence, rows };
+});
+
+const LOGISTICS_METRICS = [
+  ["denue_courier_establishments", "courier"],
+  ["denue_freight_establishments", "freight"],
+  ["denue_warehousing_establishments", "warehousing"],
+  ["denue_courier_per_10k_adults", "courier_per_10k"],
+  ["denue_freight_per_10k_adults", "freight_per_10k"],
+  ["denue_warehousing_per_10k_adults", "warehousing_per_10k"],
+] as const;
+
+export const getLogisticsMunicipal = createServerFn({ method: "GET" }).handler(async (): Promise<LogisticsPayload> => {
+  const db = publicDb();
+  const metric = await getMetricMeta(db, "denue_courier_establishments");
+  const grouped = new Map<string, LogisticsPayload["rows"][number]>();
+  let courierRows: Awaited<ReturnType<typeof queryFacts>> = [];
+  for (const [code, key] of LOGISTICS_METRICS) {
+    const rows = await queryFacts(db, { metric_code: code, year: 2026, geo_level: "municipality", segmentKeyEmpty: true });
+    if (key === "courier") courierRows = rows;
+    for (const row of rows) {
+      const current = grouped.get(row.geo_code) ?? {
+        geo_code: row.geo_code,
+        geo_name: null,
+        parent_geo_code: null,
+        courier: null,
+        freight: null,
+        warehousing: null,
+        courier_per_10k: null,
+        freight_per_10k: null,
+        warehousing_per_10k: null,
+      };
+      current[key] = Number(row.estimate);
+      grouped.set(row.geo_code, current);
+    }
+  }
+  const codes = [...grouped.keys()];
+  if (codes.length) {
+    const { data } = await db.from("dim_geography").select("geo_code, geo_name, parent_geo_code").eq("geo_level", "municipality").in("geo_code", codes);
+    for (const geo of data ?? []) {
+      const current = grouped.get(geo.geo_code);
+      if (!current) continue;
+      current.geo_name = geo.geo_name;
+      current.parent_geo_code = geo.parent_geo_code;
+    }
+  }
+  const evidence = await buildEvidence(db, {
+    fn: "get_logistics_municipal",
+    title: "Establecimientos de mensajería en municipios cabecera",
+    metric,
+    rows: courierRows,
+    warnings: [
+      "Conteo DENUE del sector 492 en el municipio cabecera de cada entidad, más las 16 alcaldías de la Ciudad de México. No es un censo de ventas por internet.",
+      "La densidad por 10 mil adultos usa la población adulta de la CNBV a marzo de 2026 como denominador y el conteo DENUE como numerador. Son registros de fechas distintas, no una tasa muestral.",
+    ],
+  });
+  const rows = [...grouped.values()].sort((a, b) => (b.courier_per_10k ?? b.courier ?? -1) - (a.courier_per_10k ?? a.courier ?? -1));
   return { evidence, rows };
 });

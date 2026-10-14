@@ -190,6 +190,23 @@ export type FinancialAccessPayload = {
   rows: AccessRow[];
 };
 
+export type LogisticsRow = {
+  geo_code: string;
+  geo_name: string | null;
+  parent_geo_code: string | null;
+  courier: number | null;
+  freight: number | null;
+  warehousing: number | null;
+  courier_per_10k: number | null;
+  freight_per_10k: number | null;
+  warehousing_per_10k: number | null;
+};
+
+export type LogisticsPayload = {
+  evidence: EvidencePayload;
+  rows: LogisticsRow[];
+};
+
 export type ScenarioGridPayload = {
   definitions: { scenario_code: string; scenario_name: string; description: string; assumptions: { parameters?: import("@/lib/scenarios").ScenarioParam[] } }[];
   rows: import("@/lib/scenarios").ScenarioRow[];

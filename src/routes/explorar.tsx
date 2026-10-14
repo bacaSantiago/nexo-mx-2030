@@ -63,13 +63,18 @@ function Explorar() {
   const bars = useQuery({ ...barriersQuery(year ?? 2025, slice), placeholderData: keepPreviousData }).data;
   const usersM = useQuery({ ...metricQuery("internet_users_millions", scope), placeholderData: keepPreviousData }).data;
   const nonM = useQuery({ ...metricQuery("nonbuyers_millions", scope), placeholderData: keepPreviousData }).data;
-  const unemployment = useQuery({ ...metricQuery("unemployment_rate_pct", { year: 2026, total_only: true }), placeholderData: keepPreviousData }).data;
-  const internetSales = useQuery({ ...metricQuery("ce_internet_sales_share_pct", { year: 2023, total_only: true }), placeholderData: keepPreviousData }).data;
-  const complaints = useQuery({ ...metricQuery("profeco_complaints", { year: 2025, total_only: true }), placeholderData: keepPreviousData }).data;
-  const account = useQuery({ ...metricQuery("enif_account_product_pct", { year: 2024, total_only: true }), placeholderData: keepPreviousData }).data;
-  const smartphone = useQuery({ ...metricQuery("enif_smartphone_pct", { year: 2024, total_only: true }), placeholderData: keepPreviousData }).data;
-  const coverage = useQuery({ ...metricQuery("altan_covered_population_pct", { year: 2025, total_only: true }), placeholderData: keepPreviousData }).data;
-  const retail = useQuery({ ...metricQuery("denue_retail_establishments", { year: 2026, total_only: true }), placeholderData: keepPreviousData }).data;
+  const otherScope = {
+    ...(year ? { year } : {}),
+    ...(geo ? { geo_code: geo } : {}),
+    ...(segment ? { segment } : { total_only: true as const }),
+  };
+  const unemployment = useQuery({ ...metricQuery("unemployment_rate_pct", otherScope), placeholderData: keepPreviousData }).data;
+  const internetSales = useQuery({ ...metricQuery("ce_internet_sales_share_pct", otherScope), placeholderData: keepPreviousData }).data;
+  const complaints = useQuery({ ...metricQuery("profeco_complaints", otherScope), placeholderData: keepPreviousData }).data;
+  const account = useQuery({ ...metricQuery("enif_account_product_pct", otherScope), placeholderData: keepPreviousData }).data;
+  const smartphone = useQuery({ ...metricQuery("enif_smartphone_pct", otherScope), placeholderData: keepPreviousData }).data;
+  const coverage = useQuery({ ...metricQuery("altan_covered_population_pct", otherScope), placeholderData: keepPreviousData }).data;
+  const retail = useQuery({ ...metricQuery("denue_retail_establishments", otherScope), placeholderData: keepPreviousData }).data;
   if (!users || !hh || !uses || !area || !cats || !bars || !usersM || !nonM || !unemployment || !internetSales || !complaints || !account || !smartphone || !coverage || !retail) return <AppShell><LoadingState /></AppShell>;
   const purchase = uses.rows.find((r) => r.label.startsWith("Comprar")) ?? null;
 
@@ -150,8 +155,11 @@ function Explorar() {
           </VisualCard>
         </div>
 
-        <h2 className="mb-3 mt-8 text-sm font-bold uppercase tracking-wide text-muted-foreground">Otras fuentes nacionales</h2>
-        <p className="mb-3 text-xs text-muted-foreground">Estas cifras son nacionales y no siguen el filtro de entidad ni de segmento.</p>
+        <h2 className="mb-3 mt-8 text-sm font-bold uppercase tracking-wide text-muted-foreground">Otras fuentes</h2>
+        <p className="mb-3 text-xs text-muted-foreground">
+          El año y la entidad de la cabecera se aplican aquí. Si esa fuente no publica ese año o esa entidad, la tarjeta queda en pendiente de carga.
+          {segment ? " Ninguna de estas fuentes tiene el segmento activo: no se muestra un total como si fuera el cruce." : " Sin segmento activo se muestra el total del año y la geografía elegidos."}
+        </p>
         <ol className="grid gap-3 sm:grid-cols-3" aria-label="Desocupación, ventas por internet y quejas">
           <li><MetricCard label="Desocupación, ENOE 2026 2T" row={latest(unemployment)} universe={unemployment.universe} source="ENOE" /></li>
           <li><MetricCard label="Ventas por internet sobre ingresos, 2023" row={latest(internetSales)} universe={internetSales.universe} source="Censos Económicos 2024" /></li>

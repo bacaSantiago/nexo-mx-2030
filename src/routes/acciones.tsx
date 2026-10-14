@@ -76,7 +76,47 @@ function Acciones() {
               </div>
             ))}
           </div>
-          {!anyScore && <p className="mt-3 text-xs text-warning-foreground">Componentes de puntaje pendientes de carga: aún no hay un modelo de priorización revisado, por lo que no se muestra ranking.</p>}
+        {!anyScore && <p className="mt-3 text-xs text-warning-foreground">Componentes de puntaje pendientes de carga: aún no hay un modelo de priorización revisado, por lo que no se muestra ranking.</p>}
+        </section>
+
+        <section className="mt-4 rounded-lg border bg-card p-4">
+          <h2 className="font-semibold">Impacto modelado por unidad de costo relativo</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Ordena los siete módulos por impacto modelado dividido entre el costo relativo ya cargado. Ese costo es un índice de 0 a 1, no un monto en pesos: la base no trae costos publicados en pesos, así que no se inventa un impacto por peso.
+          </p>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-sm">
+              <caption className="sr-only">Matriz de costo-efectividad con los componentes ya cargados</caption>
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="py-2 pr-3">Acción</th>
+                  <th className="py-2 pr-3 text-right">Alcance</th>
+                  <th className="py-2 pr-3 text-right">Impacto</th>
+                  <th className="py-2 pr-3 text-right">Equidad</th>
+                  <th className="py-2 pr-3 text-right">Factibilidad</th>
+                  <th className="py-2 pr-3 text-right">Costo relativo</th>
+                  <th className="py-2 text-right">Impacto / costo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.map((item) => {
+                  const sc = item.scores[0];
+                  const ratio = sc?.modeled_uplift != null && sc.relative_cost != null && sc.relative_cost > 0 ? sc.modeled_uplift / sc.relative_cost : null;
+                  return { item, ratio, sc };
+                }).sort((a, b) => (b.ratio ?? -1) - (a.ratio ?? -1)).map(({ item, ratio, sc }) => (
+                  <tr key={item.intervention_code} className="border-b last:border-0">
+                    <td className="py-1.5 pr-3">{item.intervention_name}</td>
+                    <td className="tabular py-1.5 pr-3 text-right">{sc?.reach == null ? "—" : sc.reach.toFixed(3)}</td>
+                    <td className="tabular py-1.5 pr-3 text-right">{sc?.modeled_uplift == null ? "—" : sc.modeled_uplift.toFixed(3)}</td>
+                    <td className="tabular py-1.5 pr-3 text-right">{sc?.equity == null ? "—" : sc.equity.toFixed(3)}</td>
+                    <td className="tabular py-1.5 pr-3 text-right">{sc?.feasibility == null ? "—" : sc.feasibility.toFixed(3)}</td>
+                    <td className="tabular py-1.5 pr-3 text-right">{sc?.relative_cost == null ? "—" : sc.relative_cost.toFixed(3)}</td>
+                    <td className="tabular py-1.5 text-right">{ratio == null ? "Pendiente" : ratio.toFixed(3)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         {data.length === 0 && <div className="mt-6"><EmptyState description="El portafolio de módulos se cargará tras la revisión." /></div>}
