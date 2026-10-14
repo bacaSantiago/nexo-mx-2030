@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { scenarioGridQuery } from "@/lib/queries";
-import { defaultValues, groupBy, parseParams, resolvePoint, type ResolvedValue, type ScenarioRow } from "@/lib/scenarios";
+import { defaultValues, groupBy, parseParams, resolvePoint, type ResolvedValue } from "@/lib/scenarios";
 import { downloadBlob, filtersText, printBrief } from "@/lib/export";
 import { formatValue } from "@/lib/format";
 
@@ -289,4 +289,3 @@ function csvLine(label: string, year: number, v: ResolvedValue | null, unit: str
   return [q(label), year, v?.estimate ?? "", v?.p10 ?? "", v?.p90 ?? "", unit, v?.interpolated ? "si" : "no", v?.basis.length ?? 0, q(lin)].join(",");
 }
 
-export type { ScenarioRow };
