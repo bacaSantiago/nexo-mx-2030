@@ -109,7 +109,7 @@ function Fuentes() {
         {items.length === 0 && <div className="mt-4"><EmptyState description="Ninguna fuente coincide con la búsqueda." /></div>}
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {items.map((d) => {
-            const st = STATUS[d.status] ?? STATUS.pending_download!;
+            const st = STATUS[d.status] ?? STATUS["pending_download"]!;
             return (
               <article key={d.id} className="flex flex-col rounded-lg border bg-card p-4">
                 <div className="flex items-start justify-between gap-2">

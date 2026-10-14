@@ -281,6 +281,7 @@ export const getInterventions = createServerFn({ method: "GET" })
       .in("intervention_code", items.map((i) => i.intervention_code));
     return items.map((i) => ({
       ...i,
+      kpis: (Array.isArray(i.kpis) ? i.kpis : []) as { kpi?: string }[],
       scores: (scores ?? []).filter((s) => s.intervention_code === i.intervention_code),
     }));
   });
@@ -368,7 +369,7 @@ export const getScenarioGrid = createServerFn({ method: "GET" }).handler(async (
     ? await db.from("source_lineage").select("fact_id, source_page, transformation, loaded_version, source_id").eq("fact_table", "scenario_result").in("fact_id", ids.slice(0, 500))
     : { data: [] };
   return {
-    definitions: (defs ?? []).map((d) => ({ ...d, assumptions: d.assumptions as unknown })),
+    definitions: (defs ?? []).map((d) => ({ ...d, assumptions: (d.assumptions ?? {}) as { parameters?: import("@/lib/scenarios").ScenarioParam[] } })),
     rows: (rows ?? []).map((r) => ({
       ...r,
       estimate: Number(r.estimate),
