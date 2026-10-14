@@ -1,0 +1,1 @@
+COMMENT ON TABLE public.fact_estimate IS 'Reviewed survey and census estimates; includes precision gaps and income match loads.';
