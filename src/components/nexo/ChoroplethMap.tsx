@@ -40,7 +40,7 @@ export function ChoroplethMap({
       try {
         const mod = await import("maplibre-gl");
         const maplibre = ((mod as unknown as { default?: typeof mod }).default ?? mod) as typeof mod;
-        const workerUrl = (await import("maplibre-gl/dist/maplibre-gl-csp-worker.js?url")).default;
+        const workerUrl = (await import("maplibre-gl/dist/maplibre-gl-worker.mjs?url")).default;
         maplibre.setWorkerUrl(workerUrl);
         const geo = await fetch("/geo/mx_states.json").then((r) => r.json());
         if (cancelled || !el.current) return;
