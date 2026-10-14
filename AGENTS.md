@@ -16,3 +16,5 @@
 - Public reads use a per-request publishable-key client (`src/lib/analytics.server.ts`), never the admin client. Why: RLS stays the boundary.
 - MapLibre is loaded client-only with a local state GeoJSON (`public/geo/mx_states.json`) and no external tiles; colors are resolved from oklch tokens to rgb. Why: MapLibre can't parse oklch and SSR can't load WebGL.
 - `exactOptionalPropertyTypes` is disabled in tsconfig; other strict flags remain. Why: friction with optional props across shadcn/recharts.
+- Chat runs through `/api/public/nexo-chat` (TanStack server route, not a Supabase Edge Function): deterministic intent → allowlisted query → AI explanation → number/citation validation with deterministic fallback; assistant rows are written server-side only. Why: numerical truth must never depend on the model.
+- Scenario pages only read precomputed `scenario_result` grids (`src/lib/scenarios.ts`): exact match or 1-D linear interpolation inside approved ranges, never extrapolation. Why: no model fitting in browser or server.
