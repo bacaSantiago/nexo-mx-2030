@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ExplorarRouteImport } from './routes/explorar'
+import { Route as MapaRouteImport } from './routes/mapa'
+import { Route as SegmentosRouteImport } from './routes/segmentos'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +24,49 @@ const ExplorarRoute = ExplorarRouteImport.update({
   path: '/explorar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MapaRoute = MapaRouteImport.update({
+  id: '/mapa',
+  path: '/mapa',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SegmentosRoute = SegmentosRouteImport.update({
+  id: '/segmentos',
+  path: '/segmentos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/explorar': typeof ExplorarRoute
+  '/mapa': typeof MapaRoute
+  '/segmentos': typeof SegmentosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/explorar': typeof ExplorarRoute
+  '/mapa': typeof MapaRoute
+  '/segmentos': typeof SegmentosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/explorar': typeof ExplorarRoute
+  '/mapa': typeof MapaRoute
+  '/segmentos': typeof SegmentosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/explorar'
+  fullPaths: '/' | '/explorar' | '/mapa' | '/segmentos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/explorar'
-  id: '__root__' | '/' | '/explorar'
+  to: '/' | '/explorar' | '/mapa' | '/segmentos'
+  id: '__root__' | '/' | '/explorar' | '/mapa' | '/segmentos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ExplorarRoute: typeof ExplorarRoute
+  MapaRoute: typeof MapaRoute
+  SegmentosRoute: typeof SegmentosRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +85,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExplorarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mapa': {
+      id: '/mapa'
+      path: '/mapa'
+      fullPath: '/mapa'
+      preLoaderRoute: typeof MapaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/segmentos': {
+      id: '/segmentos'
+      path: '/segmentos'
+      fullPath: '/segmentos'
+      preLoaderRoute: typeof SegmentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ExplorarRoute: ExplorarRoute,
+  MapaRoute: MapaRoute,
+  SegmentosRoute: SegmentosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
