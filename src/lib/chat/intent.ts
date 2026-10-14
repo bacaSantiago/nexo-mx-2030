@@ -17,7 +17,7 @@ export type IntentParams = {
   metric_code?: string;
   year?: number;
   geo_code?: string;
-  dimension?: "sex" | "area" | "age_group" | "use_type";
+  dimension?: "sex" | "area" | "age_group" | "use_type" | "schooling" | "income_decile";
   within?: Record<string, string>;
   order?: "asc" | "desc";
   topic?: string;
@@ -63,13 +63,17 @@ export function classifyIntent(raw: string, geos: { geo_code: string; geo_name: 
   if (/valor agregado|vab|pib|economia digital/.test(t))
     return { intent: "get_metric", params: { ...base, metric_code: /pib|particip/.test(t) ? "vabcoel_gdp_share_pct" : "vabcoel_current_prices_mxn_millions" } };
 
-  const dim: IntentParams["dimension"] | undefined = /urbano|rural|ambito|brecha territorial/.test(t)
-    ? "area"
-    : /mujer|hombre|sexo|genero/.test(t)
-      ? "sex"
-      : /edad|joven|mayor|generaci/.test(t)
-        ? "age_group"
-        : undefined;
+  const dim: IntentParams["dimension"] | undefined = /ingreso|decil/.test(t)
+    ? "income_decile"
+    : /escolar|estudios|nivel educativo/.test(t)
+      ? "schooling"
+      : /urbano|rural|ambito|brecha territorial/.test(t)
+        ? "area"
+        : /mujer|hombre|sexo|genero/.test(t)
+          ? "sex"
+          : /edad|joven|mayor|generaci/.test(t)
+            ? "age_group"
+            : undefined;
 
   if (/entidad|estado|ranking|menor|mayor|donde/.test(t) && !geo && !dim)
     return { intent: "rank_geographies", params: { ...base, metric_code: usersMetric, order: /menor|bajo|rezag/.test(t) ? "asc" : "desc" } };

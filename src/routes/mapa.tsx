@@ -8,11 +8,12 @@ import { evidenceSummary } from "@/components/nexo/EvidenceCanvas";
 import { LoadingState } from "@/components/nexo/states";
 import { headFor, RouteError, RouteNotFound, RoutePending } from "@/components/nexo/route-helpers";
 import { useGlobalFilters } from "@/components/nexo/filters-context";
-import { opportunityQuery } from "@/lib/queries";
+import { municipalInternetQuery, opportunityQuery } from "@/lib/queries";
 import type { PrecisionFlag } from "@/lib/analytics/types";
 import { cn } from "@/lib/utils";
 
 const ChoroplethMap = lazy(() => import("@/components/nexo/ChoroplethMap").then((m) => ({ default: m.ChoroplethMap })));
+const MunicipalPointMap = lazy(() => import("@/components/nexo/MunicipalPointMap").then((m) => ({ default: m.MunicipalPointMap })));
 const BREAKS = [70, 75, 80, 85, 90];
 
 export const Route = createFileRoute("/mapa")({
@@ -55,6 +56,9 @@ function MapaPage() {
   const { data } = useQuery({ ...opportunityQuery(year), placeholderData: keepPreviousData });
   const [metric, setMetric] = useState<"users_pct" | "households_pct">("users_pct");
   const [mode, setMode] = useState<"value" | "precision">("value");
+  const [munQuery, setMunQuery] = useState("");
+  const [munFocus, setMunFocus] = useState<string | null>(null);
+  const municipal = useQuery(municipalInternetQuery()).data;
   const precision = useMemo(() => {
     const out: Record<string, PrecisionFlag> = {};
     for (const p of data?.points ?? []) {
@@ -63,12 +67,20 @@ function MapaPage() {
     }
     return out;
   }, [data, metric]);
+  const munPoints = useMemo(() => {
+    const q = munQuery.trim().toLowerCase();
+    return (municipal?.points ?? []).filter((p) => {
+      if (filters.geo_code && p.parent_geo_code !== filters.geo_code) return false;
+      return !q || p.geo_name.toLowerCase().includes(q);
+    });
+  }, [municipal, filters.geo_code, munQuery]);
   if (!data) return <AppShell><LoadingState /></AppShell>;
   const focused = filters.geo_code ? data.points.filter((p) => p.geo_code === filters.geo_code) : data.points;
   const crossFilter = filters.sex || filters.age_group || filters.schooling || filters.area || filters.income_decile;
   const pts = data.points.filter((p) => p.users_pct != null && p.households_pct != null);
   const sorted = [...data.points].sort((a, b) => (b[metric] ?? -1) - (a[metric] ?? -1));
   const metricLabel = metric === "users_pct" ? "Personas usuarias de internet (6 años y más)" : "Hogares con internet";
+  const munListed = munPoints.slice(0, filters.geo_code || munQuery.trim() ? 80 : 12);
 
   return (
     <AppShell>
@@ -177,6 +189,62 @@ function MapaPage() {
             </table>
           </div>
         </details>
+
+        <section className="mt-8">
+          {municipal?.evidence ? <VisualCard
+            evidence={municipal.evidence}
+            title="Viviendas con internet por municipio, 2020"
+            summary={`${municipal.points.length} municipios del Censo 2020. La búsqueda y la entidad filtran el mapa.`}
+            actions={null}
+          >
+            <p className="mb-3 text-xs text-muted-foreground">
+              Porcentaje de viviendas particulares habitadas con internet. Es el censo, no la encuesta de personas, y el año no cambia con el filtro. El punto es un centroide, no el contorno del municipio.
+            </p>
+            <input
+              value={munQuery}
+              onChange={(e) => setMunQuery(e.target.value)}
+              placeholder="Buscar municipio"
+              aria-label="Buscar municipio"
+              className="mb-3 h-9 w-full max-w-sm rounded-md border bg-card px-3 text-sm"
+            />
+            {municipal?.points.length ? (
+              <ClientOnly fallback={<LoadingState label="Cargando municipios…" rows={1} />}>
+                <Suspense fallback={<LoadingState label="Cargando municipios…" rows={1} />}>
+                  <MunicipalPointMap points={munPoints} focus={munFocus} />
+                </Suspense>
+              </ClientOnly>
+            ) : (
+              <p className="text-sm text-muted-foreground">Pendiente de carga: falta la fila municipal del ITER 2020.</p>
+            )}
+            <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+              <span>Menos de 20%</span><span>20–35</span><span>35–50</span><span>50–65</span><span>65% o más</span>
+            </div>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-sm">
+                <caption className="sr-only">Municipios y porcentaje de viviendas con internet en 2020</caption>
+                <thead>
+                  <tr className="border-b text-left text-xs text-muted-foreground">
+                    <th className="py-2 pr-3">Municipio</th><th className="py-2 pr-3">Clave</th><th className="py-2 text-right">Viviendas con internet (%)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {munListed.map((p) => (
+                    <tr key={p.geo_code} className="border-b last:border-0">
+                      <td className="py-1.5 pr-3">
+                        <button type="button" className="text-left hover:underline" onClick={() => setMunFocus(p.geo_code)}>{p.geo_name}</button>
+                      </td>
+                      <td className="tabular py-1.5 pr-3 text-muted-foreground">{p.geo_code}</td>
+                      <td className="tabular py-1.5 text-right">{p.estimate.toFixed(1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {munPoints.length > munListed.length && (
+                <p className="mt-2 text-xs text-muted-foreground">Mostrando {munListed.length} de {munPoints.length}. Acota con la entidad o con la búsqueda.</p>
+              )}
+            </div>
+          </VisualCard> : <p className="text-sm text-muted-foreground">Cargando la capa municipal del Censo 2020.</p>}
+        </section>
       </PageScroll>
     </AppShell>
   );

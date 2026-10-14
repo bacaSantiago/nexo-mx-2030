@@ -36,7 +36,7 @@ function sessionDb(token: string) {
   });
 }
 
-const ALLOWED_DIM = new Set(["sex", "area", "age_group", "use_type"]);
+const ALLOWED_DIM = new Set(["sex", "area", "age_group", "use_type", "schooling", "income_decile"]);
 
 /** Dispatch to allowlisted, parameterized queries only. Never SQL. */
 async function runIntent(db: Db, it: Intent, year: number | undefined): Promise<EvidencePayload | null> {
@@ -80,7 +80,7 @@ async function runIntent(db: Db, it: Intent, year: number | undefined): Promise<
     case "rank_geographies": {
       if (!p.metric_code) return null;
       const metric = await getMetricMeta(db, p.metric_code);
-      const rows = await queryFacts(db, { metric_code: p.metric_code, year: y ?? 2025, geo_level: "state" });
+      const rows = await queryFacts(db, { metric_code: p.metric_code, year: y ?? 2025, geo_level: "state", segmentKeyEmpty: true });
       const sorted = [...rows].sort((a, b) => (p.order === "asc" ? a.estimate - b.estimate : b.estimate - a.estimate)).slice(0, 10);
       return buildEvidence(db, {
         fn: "rank_geographies",

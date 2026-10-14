@@ -18,6 +18,7 @@ function useDefs(): Def[] {
   const { data } = useQuery(filterOptionsQuery());
   const seg = data?.segments ?? {};
   const toOpts = (vals: string[] | undefined) => (vals ?? []).filter((v) => v !== "Total").map((v) => ({ value: v, label: v }));
+  const income = [...(seg["income_decile"] ?? [])].sort((a, b) => Number(a.replace(/\D/g, "")) - Number(b.replace(/\D/g, "")));
   return [
     { key: "year", label: "Año", options: (data?.years ?? []).map((y) => ({ value: String(y), label: String(y) })) },
     { key: "geo_code", label: "Entidad", options: (data?.geographies ?? []).map((g) => ({ value: g.geo_code, label: g.geo_name })) },
@@ -25,7 +26,7 @@ function useDefs(): Def[] {
     { key: "sex", label: "Sexo", options: toOpts(seg["sex"]) },
     { key: "age_group", label: "Edad", options: toOpts(seg["age_group"]) },
     { key: "schooling", label: "Escolaridad", options: toOpts(seg["schooling"]), pending: !seg["schooling"]?.length },
-    { key: "income_decile", label: "Ingreso imputado", options: [], pending: true },
+    { key: "income_decile", label: "Ingreso imputado", options: toOpts(income), pending: income.length === 0 },
   ];
 }
 
@@ -40,7 +41,7 @@ function OptionList({ def, onPick }: { def: Def; onPick: (v: string | null) => v
   if (def.pending)
     return (
       <p className="p-3 text-sm text-muted-foreground">
-        Pendiente de carga. {def.key === "income_decile" ? "ENDUTIH publica estrato socioeconómico, no un decil de ingreso. El decil imputado desde ENIGH sigue pendiente: no se emparejaron las encuestas." : "Requiere microdatos ENDUTIH."}
+        Pendiente de carga. {def.key === "income_decile" ? "El decil se imputa emparejando ENDUTIH con ENIGH. Aparece cuando esa carga ya está en la base." : "Requiere microdatos ENDUTIH."}
       </p>
     );
   if (!def.options.length) return <p className="p-3 text-sm text-muted-foreground">Cargando opciones…</p>;

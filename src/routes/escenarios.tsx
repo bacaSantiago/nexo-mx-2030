@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Download, Printer, RotateCcw, TriangleAlert } from "lucide-react";
 import { Area, Bar, BarChart, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AppShell, PageScroll } from "@/components/nexo/AppShell";
-import { EmptyState } from "@/components/nexo/states";
+import { EmptyState, LoadingState } from "@/components/nexo/states";
 import { ObservedBadge } from "@/components/nexo/badges";
 import { headFor, RouteError, RouteNotFound, RoutePending } from "@/components/nexo/route-helpers";
 import { useGlobalFilters } from "@/components/nexo/filters-context";
@@ -20,7 +20,7 @@ import { formatValue } from "@/lib/format";
 
 export const Route = createFileRoute("/escenarios")({
   head: () => headFor("Escenarios 2030", "Simulador transparente de escenarios 2030 de compra digital incluyente, leído de resultados precalculados y revisados."),
-  loader: ({ context }) => context.queryClient.ensureQueryData(scenarioGridQuery()),
+  loader: ({ context }) => context.queryClient.ensureQueryData(scenarioGridQuery("00")),
   pendingComponent: RoutePending,
   errorComponent: RouteError,
   notFoundComponent: RouteNotFound,
@@ -50,17 +50,18 @@ function fmt(v: number | null | undefined, unit: string) {
 }
 
 function Escenarios() {
-  const { data } = useSuspenseQuery(scenarioGridQuery());
   const { filters } = useGlobalFilters();
-  const defs = data.definitions;
+  const geo = filters.geo_code ?? "00";
+  const { data } = useQuery({ ...scenarioGridQuery(geo), placeholderData: keepPreviousData });
+  const defs = data?.definitions ?? [];
   const [code, setCode] = useState(defs[0]?.scenario_code ?? "s0");
   const def = defs.find((d) => d.scenario_code === code);
   const params = useMemo(() => parseParams(def?.assumptions), [def]);
   const [values, setValues] = useState<Record<string, number>>(() => defaultValues(params));
   const vals = useMemo(() => ({ ...defaultValues(params), ...values }), [params, values]);
-  const segments = useMemo(() => [...new Set(data.rows.map((r) => r.segment_code))].sort(), [data.rows]);
+  const segments = useMemo(() => [...new Set((data?.rows ?? []).map((r) => r.segment_code))].sort(), [data]);
   const [segment, setSegment] = useState("");
-  const geo = filters.geo_code ?? "00";
+  if (!data) return <AppShell><LoadingState /></AppShell>;
 
   const scoped = (sc: string) => data.rows.filter((r) => r.scenario_code === sc && r.geo_code === geo && r.segment_code === segment);
   const resolveFor = (sc: string, metric: string, year: number, component = "") => {
@@ -150,12 +151,17 @@ function Escenarios() {
         </div>
 
         <p className="mt-3 text-sm text-muted-foreground">{def?.description}</p>
+        {geo !== "00" && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            En esta entidad, 2025 es la compra estimada directo del microdato. Hacia 2030 se suman los mismos puntos de la logística nacional. El monto en pesos reparte el VAB nacional según las personas usuarias de la entidad.
+          </p>
+        )}
 
         {!hasData && (
           <div className="mt-4">
             <EmptyState
               title="Resultados pendientes de carga"
-              description="Aún no hay una malla de escenarios revisada. Cuando se cargue el modelo de difusión con sus resultados por año, entidad y supuesto, este simulador los mostrará sin recalcular nada."
+              description={geo === "00" ? "Aún no hay una malla nacional de escenarios revisada." : "Esta entidad todavía no tiene malla de escenarios en la base."}
             />
           </div>
         )}

@@ -164,6 +164,18 @@ export type FilterOptions = {
   segments: Record<string, string[]>;
 };
 
+export type MunicipalPoint = {
+  geo_code: string;
+  geo_name: string;
+  parent_geo_code: string | null;
+  estimate: number;
+};
+
+export type MunicipalPayload = {
+  points: MunicipalPoint[];
+  evidence: EvidencePayload;
+};
+
 export type ScenarioGridPayload = {
   definitions: { scenario_code: string; scenario_name: string; description: string; assumptions: { parameters?: import("@/lib/scenarios").ScenarioParam[] } }[];
   rows: import("@/lib/scenarios").ScenarioRow[];

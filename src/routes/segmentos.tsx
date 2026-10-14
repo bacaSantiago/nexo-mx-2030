@@ -13,6 +13,10 @@ import { formatValue } from "@/lib/format";
 import type { EvidenceRow } from "@/lib/analytics/types";
 
 const buy = { use_type: "Comprar productos o servicios" };
+
+function decileRank(label: string) {
+  return Number(label.replace(/\D/g, "")) || 0;
+}
 const qs = [
   segmentsQuery("internet_users_pct", "sex", 2025),
   segmentsQuery("internet_users_pct", "area", 2025),
@@ -64,6 +68,14 @@ function Segmentos() {
     ...segmentsQuery("internet_use_type_pct", "schooling", year, { ...buy, ...withinExcept(filters, "schooling") }, geo),
     placeholderData: keepPreviousData,
   }).data;
+  const income = useQuery({
+    ...segmentsQuery("internet_users_pct", "income_decile", year, withinExcept(filters, "income_decile"), geo),
+    placeholderData: keepPreviousData,
+  }).data;
+  const incomeBuy = useQuery({
+    ...segmentsQuery("internet_use_type_pct", "income_decile", year, { ...buy, ...withinExcept(filters, "income_decile") }, geo),
+    placeholderData: keepPreviousData,
+  }).data;
   if (!sex || !area || !age || !areaBuy) return <AppShell><LoadingState /></AppShell>;
   const rural = area.rows.find((r) => r.label === "Rural");
   const ruralBuy = areaBuy.rows.find((r) => r.label === "Rural");
@@ -77,6 +89,7 @@ function Segmentos() {
     ...area.rows.map((r) => ({ ...r, dim: "Ámbito" })),
     ...age.rows.map((r) => ({ ...r, dim: "Edad" })),
     ...(schooling?.rows ?? []).map((r) => ({ ...r, dim: "Escolaridad" })),
+    ...(income?.rows ?? []).map((r) => ({ ...r, dim: "Ingreso imputado" })),
   ];
 
   return (
@@ -95,7 +108,7 @@ function Segmentos() {
           />
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Año {year}{geo ? ` · entidad ${geo}` : ""}. La compra por escolaridad sale del microdato. El ingreso imputado desde ENIGH sigue pendiente.
+          Año {year}{geo ? ` · entidad ${geo}` : ""}. La compra por escolaridad sale del microdato. El decil de ingreso está imputado desde ENIGH 2024, no observado en ENDUTIH. Un cruce de tres filtros a la vez puede seguir vacío.
         </p>
 
         <div className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -112,7 +125,17 @@ function Segmentos() {
           )}
           {schoolBuy && (
             <VisualCard evidence={schoolBuy} summary={evidenceSummary(schoolBuy)} title="Compra por internet según escolaridad">
-              {schoolBuy.rows.length ? <GroupedBars data={schoolBuy.rows.map((r) => ({ label: r.label, v: r.estimate }))} series={[{ key: "v", label: "Compra (% de usuarias)", color: "var(--chart-4)" }]} unit="percent" /> : <EmptyState description="Pendiente hasta cargar el microdato. El ingreso imputado no se estima aquí." />}
+              {schoolBuy.rows.length ? <GroupedBars data={schoolBuy.rows.map((r) => ({ label: r.label, v: r.estimate }))} series={[{ key: "v", label: "Compra (% de usuarias)", color: "var(--chart-4)" }]} unit="percent" /> : <EmptyState description="Este cruce no está cargado para los filtros activos." />}
+            </VisualCard>
+          )}
+          {income && (
+            <VisualCard evidence={income} summary={evidenceSummary(income)} title="Personas usuarias por decil imputado">
+              {income.rows.length ? <GroupedBars data={[...income.rows].sort((a, b) => decileRank(a.label) - decileRank(b.label)).map((r) => ({ label: r.label.replace("Decil ", "D"), v: r.estimate }))} series={[{ key: "v", label: "Personas usuarias (%)", color: "var(--chart-5)" }]} unit="percent" /> : <EmptyState description="El decil imputado no está cargado para este filtro." />}
+            </VisualCard>
+          )}
+          {incomeBuy && (
+            <VisualCard evidence={incomeBuy} summary={evidenceSummary(incomeBuy)} title="Compra por internet según decil imputado">
+              {incomeBuy.rows.length ? <GroupedBars data={[...incomeBuy.rows].sort((a, b) => decileRank(a.label) - decileRank(b.label)).map((r) => ({ label: r.label.replace("Decil ", "D"), v: r.estimate }))} series={[{ key: "v", label: "Compra (% de usuarias)", color: "var(--chart-3)" }]} unit="percent" /> : <EmptyState description="La compra por decil imputado no está cargada para este filtro." />}
             </VisualCard>
           )}
         </div>

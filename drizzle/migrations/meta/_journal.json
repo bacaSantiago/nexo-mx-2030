@@ -29,6 +29,13 @@
       "when": 1791942000000,
       "tag": "0003_scenarios_scores_precision",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791945600000,
+      "tag": "0004_gaps_income_geo",
+      "breakpoints": true
     }
   ]
 }

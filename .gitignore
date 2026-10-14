@@ -32,3 +32,4 @@ dist-ssr
 *.sw?
 
 data/
+__pycache__/

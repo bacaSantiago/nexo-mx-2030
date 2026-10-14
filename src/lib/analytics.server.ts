@@ -68,8 +68,13 @@ export async function getMetricMeta(db: Db, metric_code: string): Promise<Metric
 }
 
 async function geoNames(db: Db): Promise<Map<string, string>> {
-  const { data } = await db.from("dim_geography").select("geo_level, geo_code, geo_name");
-  return new Map((data ?? []).map((g) => [`${g.geo_level}:${g.geo_code}`, g.geo_name]));
+  const rows: { geo_level: string; geo_code: string; geo_name: string }[] = [];
+  for (let from = 0; from < 10000; from += 1000) {
+    const { data } = await db.from("dim_geography").select("geo_level, geo_code, geo_name").range(from, from + 999);
+    rows.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
+  return new Map(rows.map((g) => [`${g.geo_level}:${g.geo_code}`, g.geo_name]));
 }
 
 function segLabel(seg: Record<string, string>, geoName: string | null) {

@@ -8,6 +8,7 @@ import {
   getMethodology,
   getMetric,
   getOpportunityMap,
+  getMunicipalInternet,
   getScenario,
   getScenarioGrid,
   getSources,
@@ -40,7 +41,7 @@ export const metricQuery = (metric_code: string, opts: MetricQueryOpts = {}) =>
     staleTime: stale,
   });
 
-export type SegmentDimension = "sex" | "area" | "age_group" | "use_type" | "schooling";
+export type SegmentDimension = "sex" | "area" | "age_group" | "use_type" | "schooling" | "income_decile";
 
 export const segmentsQuery = (
   metric_code: string,
@@ -94,5 +95,12 @@ export const methodologyQuery = () =>
 export const filterOptionsQuery = () =>
   queryOptions({ queryKey: ["filter-options"], queryFn: () => getFilterOptions(), staleTime: stale });
 
-export const scenarioGridQuery = () =>
-  queryOptions({ queryKey: ["scenario-grid"], queryFn: () => getScenarioGrid(), staleTime: stale });
+export const scenarioGridQuery = (geo_code = "00") =>
+  queryOptions({
+    queryKey: ["scenario-grid", geo_code],
+    queryFn: () => getScenarioGrid({ data: { geo_code } }),
+    staleTime: stale,
+  });
+
+export const municipalInternetQuery = () =>
+  queryOptions({ queryKey: ["municipal-internet"], queryFn: () => getMunicipalInternet(), staleTime: stale });
