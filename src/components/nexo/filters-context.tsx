@@ -52,11 +52,11 @@ export function useGlobalFilters() {
 /** Segment keys the analytical tables can store. */
 export function segmentFromFilters(filters: GlobalFilterState): Record<string, string> | undefined {
   const segment: Record<string, string> = {};
-  if (filters.area) segment.area = filters.area;
-  if (filters.sex) segment.sex = filters.sex;
-  if (filters.age_group) segment.age_group = filters.age_group;
-  if (filters.schooling) segment.schooling = filters.schooling;
-  if (filters.income_decile) segment.income_decile = filters.income_decile;
+  if (filters.area) segment["area"] = filters.area;
+  if (filters.sex) segment["sex"] = filters.sex;
+  if (filters.age_group) segment["age_group"] = filters.age_group;
+  if (filters.schooling) segment["schooling"] = filters.schooling;
+  if (filters.income_decile) segment["income_decile"] = filters.income_decile;
   return Object.keys(segment).length ? segment : undefined;
 }
 

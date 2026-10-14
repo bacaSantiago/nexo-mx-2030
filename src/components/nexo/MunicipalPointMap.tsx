@@ -98,18 +98,20 @@ export function MunicipalPointMap({ points, focus }: { points: MunicipalPoint[];
     });
     const source = map.getSource("mun") as import("maplibre-gl").GeoJSONSource | undefined;
     source?.setData({ type: "FeatureCollection", features });
+    const c = (i: number) => colors[i] ?? "rgb(128,128,128)";
+    const b = (i: number) => BREAKS[i] ?? 0;
     map.setPaintProperty("mun", "circle-color", [
       "step",
       ["get", "estimate"],
-      colors[0],
-      BREAKS[0],
-      colors[1],
-      BREAKS[1],
-      colors[2],
-      BREAKS[2],
-      colors[3],
-      BREAKS[3],
-      colors[4],
+      c(0),
+      b(0),
+      c(1),
+      b(1),
+      c(2),
+      b(2),
+      c(3),
+      b(3),
+      c(4),
     ]);
     const labels: Record<string, string> = {};
     for (const point of points) {
@@ -132,7 +134,7 @@ export function MunicipalPointMap({ points, focus }: { points: MunicipalPoint[];
         north = Math.max(north, lat);
       }
       if (features.length === 1) {
-        const coords = features[0]?.geometry.coordinates;
+        const coords = features[0]?.geometry.coordinates ?? [0, 0];
         map.flyTo({ center: [coords[0] ?? 0, coords[1] ?? 0], zoom: 8 });
       } else {
         map.fitBounds([[west, south], [east, north]], { padding: 24, duration: 0 });
