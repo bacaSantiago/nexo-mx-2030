@@ -24,7 +24,7 @@ function useDefs(): Def[] {
     { key: "area", label: "Ámbito", options: toOpts(seg["area"]) },
     { key: "sex", label: "Sexo", options: toOpts(seg["sex"]) },
     { key: "age_group", label: "Edad", options: toOpts(seg["age_group"]) },
-    { key: "schooling", label: "Escolaridad", options: [], pending: true },
+    { key: "schooling", label: "Escolaridad", options: toOpts(seg["schooling"]), pending: !seg["schooling"]?.length },
     { key: "income_decile", label: "Ingreso imputado", options: [], pending: true },
   ];
 }
@@ -40,7 +40,7 @@ function OptionList({ def, onPick }: { def: Def; onPick: (v: string | null) => v
   if (def.pending)
     return (
       <p className="p-3 text-sm text-muted-foreground">
-        Pendiente de carga. {def.key === "income_decile" ? "El ingreso se incorporará como decil imputado desde ENIGH." : "Requiere microdatos ENDUTIH."}
+        Pendiente de carga. {def.key === "income_decile" ? "ENDUTIH publica estrato socioeconómico, no un decil de ingreso. El decil imputado desde ENIGH sigue pendiente: no se emparejaron las encuestas." : "Requiere microdatos ENDUTIH."}
       </p>
     );
   if (!def.options.length) return <p className="p-3 text-sm text-muted-foreground">Cargando opciones…</p>;

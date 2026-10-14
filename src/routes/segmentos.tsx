@@ -1,25 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { AppShell, PageScroll } from "@/components/nexo/AppShell";
 import { VisualCard } from "@/components/nexo/visual-card";
 import { GroupedBars } from "@/components/nexo/charts";
 import { evidenceSummary } from "@/components/nexo/EvidenceCanvas";
 import { PrecisionBadge, ObservedBadge } from "@/components/nexo/badges";
-import { EmptyState } from "@/components/nexo/states";
+import { EmptyState, LoadingState } from "@/components/nexo/states";
 import { headFor, RouteError, RouteNotFound, RoutePending } from "@/components/nexo/route-helpers";
+import { useGlobalFilters, withinExcept } from "@/components/nexo/filters-context";
 import { segmentsQuery } from "@/lib/queries";
 import { formatValue } from "@/lib/format";
-import { compareSegments } from "@/lib/analytics.functions";
-import { queryOptions } from "@tanstack/react-query";
 import type { EvidenceRow } from "@/lib/analytics/types";
 
-const areaPurchase = queryOptions({
-  queryKey: ["segments-within", "purchase-area"],
-  queryFn: () =>
-    compareSegments({ data: { metric_code: "internet_use_type_pct", dimension: "area", year: 2025, within: { use_type: "Comprar productos o servicios" } } }),
-  staleTime: 300_000,
-});
-const qs = [segmentsQuery("internet_users_pct", "sex", 2025), segmentsQuery("internet_users_pct", "area", 2025), segmentsQuery("internet_users_pct", "age_group", 2025), areaPurchase] as const;
+const buy = { use_type: "Comprar productos o servicios" };
+const qs = [
+  segmentsQuery("internet_users_pct", "sex", 2025),
+  segmentsQuery("internet_users_pct", "area", 2025),
+  segmentsQuery("internet_users_pct", "age_group", 2025),
+  segmentsQuery("internet_use_type_pct", "area", 2025, buy),
+] as const;
 
 export const Route = createFileRoute("/segmentos")({
   head: () => headFor("Segmentos", "Perfiles de brecha digital por sexo, ámbito y edad, con tabla comparativa de cifras oficiales."),
@@ -47,16 +46,38 @@ function Persona({ title, hint, row, extra }: { title: string; hint: string; row
 }
 
 function Segmentos() {
-  const sex = useSuspenseQuery(qs[0]).data;
-  const area = useSuspenseQuery(qs[1]).data;
-  const age = useSuspenseQuery(qs[2]).data;
-  const areaBuy = useSuspenseQuery(qs[3]).data;
+  const { filters } = useGlobalFilters();
+  const year = filters.year ?? 2025;
+  const geo = filters.geo_code ?? undefined;
+  const sex = useQuery({ ...segmentsQuery("internet_users_pct", "sex", year, withinExcept(filters, "sex"), geo), placeholderData: keepPreviousData }).data;
+  const area = useQuery({ ...segmentsQuery("internet_users_pct", "area", year, withinExcept(filters, "area"), geo), placeholderData: keepPreviousData }).data;
+  const age = useQuery({ ...segmentsQuery("internet_users_pct", "age_group", year, withinExcept(filters, "age_group"), geo), placeholderData: keepPreviousData }).data;
+  const areaBuy = useQuery({
+    ...segmentsQuery("internet_use_type_pct", "area", year, { ...buy, ...withinExcept(filters, "area") }, geo),
+    placeholderData: keepPreviousData,
+  }).data;
+  const schooling = useQuery({
+    ...segmentsQuery("internet_users_pct", "schooling", year, withinExcept(filters, "schooling"), geo),
+    placeholderData: keepPreviousData,
+  }).data;
+  const schoolBuy = useQuery({
+    ...segmentsQuery("internet_use_type_pct", "schooling", year, { ...buy, ...withinExcept(filters, "schooling") }, geo),
+    placeholderData: keepPreviousData,
+  }).data;
+  if (!sex || !area || !age || !areaBuy) return <AppShell><LoadingState /></AppShell>;
   const rural = area.rows.find((r) => r.label === "Rural");
   const ruralBuy = areaBuy.rows.find((r) => r.label === "Rural");
   const old = age.rows.find((r) => r.label.startsWith("65"));
   const oldest = age.rows.find((r) => r.label.startsWith("75"));
   const women = sex.rows.find((r) => r.label === "Mujeres");
-  const all = [...sex.rows.map((r) => ({ ...r, dim: "Sexo" })), ...area.rows.map((r) => ({ ...r, dim: "Ámbito" })), ...age.rows.map((r) => ({ ...r, dim: "Edad" }))];
+  const schoolRow = filters.schooling ? schooling?.rows.find((r) => r.label === filters.schooling) : undefined;
+  const schoolPurchase = filters.schooling ? schoolBuy?.rows.find((r) => r.label === filters.schooling) : undefined;
+  const all = [
+    ...sex.rows.map((r) => ({ ...r, dim: "Sexo" })),
+    ...area.rows.map((r) => ({ ...r, dim: "Ámbito" })),
+    ...age.rows.map((r) => ({ ...r, dim: "Edad" })),
+    ...(schooling?.rows ?? []).map((r) => ({ ...r, dim: "Escolaridad" })),
+  ];
 
   return (
     <AppShell>
@@ -66,8 +87,16 @@ function Segmentos() {
           <Persona title="Persona mayor (65–74)" hint="Rezago generacional en uso digital." row={old} />
           <Persona title="Persona mayor (75+)" hint="El grupo con menor uso de internet." row={oldest} />
           <Persona title="Mujeres" hint="Brecha por sexo en uso de internet." row={women} />
+          <Persona
+            title={filters.schooling ?? "Escolaridad"}
+            hint={schooling?.rows.length ? "Uso de internet según el nivel declarado en ENDUTIH." : "El cruce por escolaridad aparece cuando el microdato ya está cargado."}
+            row={schoolRow}
+            extra={schoolPurchase ? { label: "Compra por internet", row: schoolPurchase } : undefined}
+          />
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">Compra digital por sexo, edad, escolaridad e ingreso imputado: pendiente de carga (requiere microdatos).</p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Año {year}{geo ? ` · entidad ${geo}` : ""}. La compra por escolaridad sale del microdato. El ingreso imputado desde ENIGH sigue pendiente.
+        </p>
 
         <div className="mt-8 grid gap-4 lg:grid-cols-2">
           <VisualCard evidence={age} summary={evidenceSummary(age)}>
@@ -76,11 +105,21 @@ function Segmentos() {
           <VisualCard evidence={areaBuy} summary={evidenceSummary(areaBuy)} title="Compra por internet por ámbito">
             {areaBuy.rows.length ? <GroupedBars data={areaBuy.rows.map((r) => ({ label: r.label, v: r.estimate }))} series={[{ key: "v", label: "Compra (% de usuarias)", color: "var(--chart-3)" }]} unit="percent" /> : <EmptyState />}
           </VisualCard>
+          {schooling && (
+            <VisualCard evidence={schooling} summary={evidenceSummary(schooling)} title="Personas usuarias por escolaridad">
+              {schooling.rows.length ? <GroupedBars data={schooling.rows.map((r) => ({ label: r.label, v: r.estimate }))} series={[{ key: "v", label: "Personas usuarias (%)", color: "var(--chart-1)" }]} unit="percent" /> : <EmptyState description="Aún no hay cruces de escolaridad en la base. Se cargan desde el microdato ENDUTIH, no desde la presentación." />}
+            </VisualCard>
+          )}
+          {schoolBuy && (
+            <VisualCard evidence={schoolBuy} summary={evidenceSummary(schoolBuy)} title="Compra por internet según escolaridad">
+              {schoolBuy.rows.length ? <GroupedBars data={schoolBuy.rows.map((r) => ({ label: r.label, v: r.estimate }))} series={[{ key: "v", label: "Compra (% de usuarias)", color: "var(--chart-4)" }]} unit="percent" /> : <EmptyState description="Pendiente hasta cargar el microdato. El ingreso imputado no se estima aquí." />}
+            </VisualCard>
+          )}
         </div>
 
         <section className="mt-8 rounded-lg border bg-card">
           <header className="border-b px-4 py-3">
-            <h2 className="font-semibold">Tabla comparativa · Personas usuarias de internet, 2025</h2>
+            <h2 className="font-semibold">Tabla comparativa · Personas usuarias de internet, {year}</h2>
             <p className="text-xs text-muted-foreground">Porcentaje · {sex.universe?.split(",")[0]} · {sex.sources[0]?.source_name}</p>
           </header>
           <div className="overflow-x-auto">

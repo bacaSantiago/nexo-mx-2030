@@ -48,3 +48,21 @@ export function useGlobalFilters() {
   if (!ctx) throw new Error("useGlobalFilters must be used inside FiltersProvider");
   return ctx;
 }
+
+/** Segment keys the analytical tables can store. Income stays out until an ENIGH match exists. */
+export function segmentFromFilters(filters: GlobalFilterState): Record<string, string> | undefined {
+  const segment: Record<string, string> = {};
+  if (filters.area) segment.area = filters.area;
+  if (filters.sex) segment.sex = filters.sex;
+  if (filters.age_group) segment.age_group = filters.age_group;
+  if (filters.schooling) segment.schooling = filters.schooling;
+  if (filters.income_decile) segment.income_decile = filters.income_decile;
+  return Object.keys(segment).length ? segment : undefined;
+}
+
+export function withinExcept(filters: GlobalFilterState, dimension: string): Record<string, string> | undefined {
+  const segment = segmentFromFilters(filters);
+  if (!segment) return undefined;
+  const rest = Object.fromEntries(Object.entries(segment).filter(([key]) => key !== dimension));
+  return Object.keys(rest).length ? rest : undefined;
+}

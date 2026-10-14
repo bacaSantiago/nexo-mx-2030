@@ -16,17 +16,42 @@ import {
 
 const stale = 5 * 60_000;
 
-export const metricQuery = (metric_code: string, opts: { year?: number; total_only?: boolean } = {}) =>
+export type MetricQueryOpts = {
+  year?: number;
+  geo_code?: string;
+  segment?: Record<string, string>;
+  total_only?: boolean;
+};
+
+export const metricQuery = (metric_code: string, opts: MetricQueryOpts = {}) =>
   queryOptions({
     queryKey: ["metric", metric_code, opts],
-    queryFn: () => getMetric({ data: { metric_code, ...opts } }),
+    queryFn: () =>
+      getMetric({
+        data: {
+          metric_code,
+          year: opts.year,
+          geo_level: opts.geo_code ? "state" : "national",
+          geo_code: opts.geo_code ?? "00",
+          segment: opts.segment,
+          total_only: opts.segment ? false : (opts.total_only ?? true),
+        },
+      }),
     staleTime: stale,
   });
 
-export const segmentsQuery = (metric_code: string, dimension: "sex" | "area" | "age_group" | "use_type", year?: number) =>
+export type SegmentDimension = "sex" | "area" | "age_group" | "use_type" | "schooling";
+
+export const segmentsQuery = (
+  metric_code: string,
+  dimension: SegmentDimension,
+  year?: number,
+  within?: Record<string, string>,
+  geo_code?: string,
+) =>
   queryOptions({
-    queryKey: ["segments", metric_code, dimension, year],
-    queryFn: () => compareSegments({ data: { metric_code, dimension, year } }),
+    queryKey: ["segments", metric_code, dimension, year ?? null, within ?? null, geo_code ?? null],
+    queryFn: () => compareSegments({ data: { metric_code, dimension, year, within, geo_code } }),
     staleTime: stale,
   });
 
@@ -37,11 +62,19 @@ export const rankQuery = (metric_code: string, year?: number) =>
     staleTime: stale,
   });
 
-export const barriersQuery = (year?: number) =>
-  queryOptions({ queryKey: ["barriers", year], queryFn: () => getBarriers({ data: { year } }), staleTime: stale });
+export const barriersQuery = (year?: number, opts: { geo_code?: string; segment?: Record<string, string> } = {}) =>
+  queryOptions({
+    queryKey: ["barriers", year ?? null, opts],
+    queryFn: () => getBarriers({ data: { year, geo_code: opts.geo_code, segment: opts.segment } }),
+    staleTime: stale,
+  });
 
-export const categoriesQuery = (year?: number) =>
-  queryOptions({ queryKey: ["categories", year], queryFn: () => getCategories({ data: { year } }), staleTime: stale });
+export const categoriesQuery = (year?: number, opts: { geo_code?: string; segment?: Record<string, string> } = {}) =>
+  queryOptions({
+    queryKey: ["categories", year ?? null, opts],
+    queryFn: () => getCategories({ data: { year, geo_code: opts.geo_code, segment: opts.segment } }),
+    staleTime: stale,
+  });
 
 export const opportunityQuery = (year = 2025) =>
   queryOptions({ queryKey: ["opportunity", year], queryFn: () => getOpportunityMap({ data: { year } }), staleTime: stale });

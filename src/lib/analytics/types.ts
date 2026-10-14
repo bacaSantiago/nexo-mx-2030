@@ -127,7 +127,7 @@ export type InterventionItem = {
   description: string;
   implementation_actors: string[];
   module_code: string | null;
-  kpis: { kpi?: string }[];
+  kpis: { kpi?: string; m3?: string; m6?: string; m12?: string }[];
   evaluation_design: string | null;
   scores: {
     geo_code: string;
@@ -146,6 +146,8 @@ export type OpportunityPoint = {
   geo_name: string;
   users_pct: number | null;
   households_pct: number | null;
+  users_precision: PrecisionFlag | null;
+  households_precision: PrecisionFlag | null;
   quadrant: "alto_alto" | "alto_bajo" | "bajo_alto" | "bajo_bajo" | null;
 };
 

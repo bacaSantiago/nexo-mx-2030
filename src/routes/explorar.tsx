@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { AppShell, PageScroll } from "@/components/nexo/AppShell";
 import { VisualCard } from "@/components/nexo/visual-card";
 import { BarList, TrendChart } from "@/components/nexo/charts";
 import { evidenceSummary } from "@/components/nexo/EvidenceCanvas";
 import { MetricCard } from "@/components/nexo/cards";
-import { EmptyState } from "@/components/nexo/states";
+import { EmptyState, LoadingState } from "@/components/nexo/states";
 import { headFor, RouteError, RouteNotFound, RoutePending } from "@/components/nexo/route-helpers";
+import { segmentFromFilters, useGlobalFilters, withinExcept } from "@/components/nexo/filters-context";
 import { barriersQuery, categoriesQuery, metricQuery, segmentsQuery } from "@/lib/queries";
 import type { EvidencePayload } from "@/lib/analytics/types";
 
@@ -35,14 +36,27 @@ function latest(e: EvidencePayload) {
 }
 
 function Explorar() {
-  const users = useSuspenseQuery(qs[0]).data;
-  const hh = useSuspenseQuery(qs[1]).data;
-  const uses = useSuspenseQuery(qs[2]).data;
-  const area = useSuspenseQuery(qs[3]).data;
-  const cats = useSuspenseQuery(qs[4]).data;
-  const bars = useSuspenseQuery(qs[5]).data;
-  const usersM = useSuspenseQuery(qs[6]).data;
-  const nonM = useSuspenseQuery(qs[7]).data;
+  const { filters } = useGlobalFilters();
+  const segment = segmentFromFilters(filters);
+  const year = filters.year ?? undefined;
+  const geo = filters.geo_code ?? undefined;
+  const scope = { ...(year ? { year } : {}), ...(geo ? { geo_code: geo } : {}), ...(segment ? { segment } : {}) };
+  const slice = { ...(geo ? { geo_code: geo } : {}), ...(segment ? { segment } : {}) };
+  const users = useQuery({ ...metricQuery("internet_users_pct", scope), placeholderData: keepPreviousData }).data;
+  const hh = useQuery({ ...metricQuery("households_with_internet_pct", scope), placeholderData: keepPreviousData }).data;
+  const uses = useQuery({
+    ...segmentsQuery("internet_use_type_pct", "use_type", year ?? 2025, withinExcept(filters, "use_type"), geo),
+    placeholderData: keepPreviousData,
+  }).data;
+  const area = useQuery({
+    ...segmentsQuery("internet_users_pct", "area", year, withinExcept(filters, "area"), geo),
+    placeholderData: keepPreviousData,
+  }).data;
+  const cats = useQuery({ ...categoriesQuery(year ?? 2025, slice), placeholderData: keepPreviousData }).data;
+  const bars = useQuery({ ...barriersQuery(year ?? 2025, slice), placeholderData: keepPreviousData }).data;
+  const usersM = useQuery({ ...metricQuery("internet_users_millions", scope), placeholderData: keepPreviousData }).data;
+  const nonM = useQuery({ ...metricQuery("nonbuyers_millions", scope), placeholderData: keepPreviousData }).data;
+  if (!users || !hh || !uses || !area || !cats || !bars || !usersM || !nonM) return <AppShell><LoadingState /></AppShell>;
   const purchase = uses.rows.find((r) => r.label.startsWith("Comprar")) ?? null;
 
   // Trend: national users + households, joined by year without filling gaps
@@ -52,16 +66,23 @@ function Explorar() {
     users: users.rows.find((r) => r.year === y)?.estimate ?? null,
     hh: hh.rows.find((r) => r.year === y)?.estimate ?? null,
   }));
-  const areaYears = area.years;
+  const areaRows = filters.area ? area.rows.filter((r) => r.label === filters.area) : area.rows;
+  const areaYears = [...new Set(areaRows.map((r) => r.year))].sort((a, b) => a - b);
   const areaTrend = areaYears.map((y) => ({
     year: String(y),
-    urb: area.rows.find((r) => r.year === y && r.label === "Urbano")?.estimate ?? null,
-    rur: area.rows.find((r) => r.year === y && r.label === "Rural")?.estimate ?? null,
+    urb: areaRows.find((r) => r.year === y && r.label === "Urbano")?.estimate ?? null,
+    rur: areaRows.find((r) => r.year === y && r.label === "Rural")?.estimate ?? null,
   }));
+  const scopeNote = [
+    year ? `Año ${year}` : null,
+    geo ? `Entidad ${geo}` : null,
+    segment ? Object.entries(segment).map(([k, v]) => `${k}: ${v}`).join(" · ") : null,
+  ].filter(Boolean).join(" · ");
 
   return (
     <AppShell>
       <PageScroll title="Explorar" description="Panorama de adopción: del acceso a internet a la compra digital. Cada paso tiene su propio universo.">
+        {scopeNote && <p className="mb-3 text-xs text-muted-foreground">Filtro activo: {scopeNote}. Si el cruce no está publicado, la tarjeta queda en pendiente de carga.</p>}
         <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted-foreground">Embudo de adopción</h2>
         <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Embudo de adopción digital">
           <li><MetricCard label="1 · Hogares con internet" row={latest(hh)} universe={hh.universe} source="ENDUTIH" /></li>

@@ -1,5 +1,5 @@
 import { createFileRoute, ClientOnly } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { lazy, Suspense, useMemo, useState } from "react";
 import { CartesianGrid, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from "recharts";
 import { AppShell, PageScroll } from "@/components/nexo/AppShell";
@@ -7,6 +7,7 @@ import { VisualCard } from "@/components/nexo/visual-card";
 import { evidenceSummary } from "@/components/nexo/EvidenceCanvas";
 import { LoadingState } from "@/components/nexo/states";
 import { headFor, RouteError, RouteNotFound, RoutePending } from "@/components/nexo/route-helpers";
+import { useGlobalFilters } from "@/components/nexo/filters-context";
 import { opportunityQuery } from "@/lib/queries";
 import type { PrecisionFlag } from "@/lib/analytics/types";
 import { cn } from "@/lib/utils";
@@ -49,14 +50,22 @@ function Toggle<T extends string>({ value, options, onChange, label }: { value: 
 }
 
 function MapaPage() {
-  const { data } = useSuspenseQuery(opportunityQuery(2025));
+  const { filters } = useGlobalFilters();
+  const year = filters.year ?? 2025;
+  const { data } = useQuery({ ...opportunityQuery(year), placeholderData: keepPreviousData });
   const [metric, setMetric] = useState<"users_pct" | "households_pct">("users_pct");
   const [mode, setMode] = useState<"value" | "precision">("value");
   const precision = useMemo(() => {
     const out: Record<string, PrecisionFlag> = {};
-    for (const r of data.evidence.rows) out[r.geo_code] = r.precision_flag;
+    for (const p of data?.points ?? []) {
+      const flag = metric === "users_pct" ? p.users_precision : p.households_precision;
+      if (flag) out[p.geo_code] = flag;
+    }
     return out;
-  }, [data]);
+  }, [data, metric]);
+  if (!data) return <AppShell><LoadingState /></AppShell>;
+  const focused = filters.geo_code ? data.points.filter((p) => p.geo_code === filters.geo_code) : data.points;
+  const crossFilter = filters.sex || filters.age_group || filters.schooling || filters.area || filters.income_decile;
   const pts = data.points.filter((p) => p.users_pct != null && p.households_pct != null);
   const sorted = [...data.points].sort((a, b) => (b[metric] ?? -1) - (a[metric] ?? -1));
   const metricLabel = metric === "users_pct" ? "Personas usuarias de internet (6 años y más)" : "Hogares con internet";
@@ -64,11 +73,16 @@ function MapaPage() {
   return (
     <AppShell>
       <PageScroll title="Mapa de oportunidad" description="Dónde hay acceso, dónde hay uso y dónde se acumulan rezagos. Cifras estatales observadas; la compra digital estatal requerirá estimación modelada.">
+        <p className="mb-3 text-xs text-muted-foreground">
+          Año {year}.
+          {filters.geo_code ? ` Tabla acotada a la entidad ${focused[0]?.geo_name ?? filters.geo_code}.` : " Mapa y tabla de las 32 entidades."}
+          {crossFilter ? " El mapa no tiene cruce estatal por sexo, edad, escolaridad, ámbito o ingreso; esos filtros no cambian estas cifras." : ""}
+        </p>
         <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
           <VisualCard
             evidence={data.evidence}
             title={metricLabel}
-            summary={`${metricLabel}, 2025. Mayor: ${sorted[0]?.geo_name} (${sorted[0]?.[metric]} %). Menor: ${sorted.at(-1)?.geo_name} (${sorted.at(-1)?.[metric]} %).`}
+            summary={`${metricLabel}, ${year}. Mayor: ${sorted[0]?.geo_name} (${sorted[0]?.[metric]} %). Menor: ${sorted.at(-1)?.geo_name} (${sorted.at(-1)?.[metric]} %).`}
             actions={null}
           >
             <div className="mb-3 flex flex-wrap gap-2">
@@ -121,7 +135,7 @@ function MapaPage() {
                       ) : null;
                     }}
                   />
-                  <Scatter data={pts} fill="var(--chart-1)" isAnimationActive={false} />
+                  <Scatter data={filters.geo_code ? pts.filter((p) => p.geo_code === filters.geo_code) : pts} fill="var(--chart-1)" isAnimationActive={false} />
                 </ScatterChart>
               </ResponsiveContainer>
             </div>
@@ -151,7 +165,7 @@ function MapaPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.points.map((p) => (
+                {focused.map((p) => (
                   <tr key={p.geo_code} className="border-b last:border-0">
                     <td className="py-1.5 pr-3">{p.geo_name}</td>
                     <td className="tabular py-1.5 pr-3 text-right">{p.users_pct ?? "Pendiente de carga"}</td>

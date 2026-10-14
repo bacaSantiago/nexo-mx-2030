@@ -7,6 +7,7 @@ import type {
   MethodologyNote,
   OpportunityPayload,
   OpportunityPoint,
+  PrecisionFlag,
   ScenarioPayload,
   ScenarioGridPayload,
   SourceCatalogItem,
@@ -14,7 +15,7 @@ import type {
 import { buildEvidence, getMetricMeta, publicDb, queryFacts, FE_SELECT } from "@/lib/analytics.server";
 
 const segmentSchema = z.record(z.string().max(40).regex(/^[a-z_]+$/), z.string().max(120)).optional();
-const dimensionSchema = z.enum(["sex", "area", "age_group", "use_type"]);
+const dimensionSchema = z.enum(["sex", "area", "age_group", "use_type", "schooling"]);
 
 // ---------- get_metric ----------
 export const getMetric = createServerFn({ method: "GET" })
@@ -65,6 +66,7 @@ export const compareSegments = createServerFn({ method: "GET" })
       dimension: dimensionSchema,
       year: yearSchema.optional(),
       within: segmentSchema,
+      geo_code: geoCodeSchema.optional(),
     }),
   )
   .handler(async ({ data }) => {
@@ -73,8 +75,8 @@ export const compareSegments = createServerFn({ method: "GET" })
     const rows = await queryFacts(db, {
       metric_code: data.metric_code,
       year: data.year,
-      geo_level: "national",
-      geo_code: "00",
+      geo_level: data.geo_code ? "state" : "national",
+      geo_code: data.geo_code ?? "00",
       segment: data.within,
       hasDimension: data.dimension,
     });
@@ -83,7 +85,7 @@ export const compareSegments = createServerFn({ method: "GET" })
       const s = (r.segment_json ?? {}) as Record<string, string>;
       return Object.keys(s).length === 1 + extra && s[data.dimension] !== "Total";
     });
-    const dimLabel: Record<string, string> = { sex: "sexo", area: "ámbito", age_group: "grupo de edad", use_type: "tipo de uso" };
+    const dimLabel: Record<string, string> = { sex: "sexo", area: "ámbito", age_group: "grupo de edad", use_type: "tipo de uso", schooling: "escolaridad" };
     return buildEvidence(db, {
       fn: "compare_segments",
       title: `${metric?.metric_label ?? "Métrica"} por ${dimLabel[data.dimension]}`,
@@ -124,11 +126,17 @@ export const rankGeographies = createServerFn({ method: "GET" })
 
 // ---------- get_barriers ----------
 export const getBarriers = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ year: yearSchema.optional() }))
+  .inputValidator(z.object({ year: yearSchema.optional(), geo_code: geoCodeSchema.optional(), segment: segmentSchema }))
   .handler(async ({ data }) => {
     const db = publicDb();
     const metric = await getMetricMeta(db, "nonbuyer_reason_pct_as_published");
-    const rows = await queryFacts(db, { metric_code: "nonbuyer_reason_pct_as_published", year: data.year });
+    const rows = await queryFacts(db, {
+      metric_code: "nonbuyer_reason_pct_as_published",
+      year: data.year,
+      geo_level: data.geo_code ? "state" : "national",
+      geo_code: data.geo_code ?? "00",
+      segment: data.segment,
+    });
     return buildEvidence(db, {
       fn: "get_barriers",
       title: "Razones para no comprar por internet",
@@ -140,11 +148,17 @@ export const getBarriers = createServerFn({ method: "GET" })
 
 // ---------- get_categories ----------
 export const getCategories = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ year: yearSchema.optional() }))
+  .inputValidator(z.object({ year: yearSchema.optional(), geo_code: geoCodeSchema.optional(), segment: segmentSchema }))
   .handler(async ({ data }) => {
     const db = publicDb();
     const metric = await getMetricMeta(db, "online_purchase_category_pct");
-    const rows = await queryFacts(db, { metric_code: "online_purchase_category_pct", year: data.year });
+    const rows = await queryFacts(db, {
+      metric_code: "online_purchase_category_pct",
+      year: data.year,
+      geo_level: data.geo_code ? "state" : "national",
+      geo_code: data.geo_code ?? "00",
+      segment: data.segment,
+    });
     return buildEvidence(db, {
       fn: "get_categories",
       title: "Categorías compradas por internet",
@@ -193,6 +207,8 @@ export const getOpportunityMap = createServerFn({ method: "GET" })
     const natHh = nat.data?.find((r) => r.metric_code === "households_with_internet_pct")?.estimate ?? null;
     const u = new Map(users.map((r) => [r.geo_code, Number(r.estimate)]));
     const h = new Map(hh.map((r) => [r.geo_code, Number(r.estimate)]));
+    const uPrec = new Map(users.map((r) => [r.geo_code, r.precision_flag]));
+    const hPrec = new Map(hh.map((r) => [r.geo_code, r.precision_flag]));
     const points: OpportunityPoint[] = (geos.data ?? []).map((g) => {
       const up = u.get(g.geo_code) ?? null;
       const hp = h.get(g.geo_code) ?? null;
@@ -200,7 +216,15 @@ export const getOpportunityMap = createServerFn({ method: "GET" })
       if (up != null && hp != null && natUsers != null && natHh != null) {
         quadrant = `${up >= Number(natUsers) ? "alto" : "bajo"}_${hp >= Number(natHh) ? "alto" : "bajo"}` as OpportunityPoint["quadrant"];
       }
-      return { geo_code: g.geo_code, geo_name: g.geo_name, users_pct: up, households_pct: hp, quadrant };
+      return {
+        geo_code: g.geo_code,
+        geo_name: g.geo_name,
+        users_pct: up,
+        households_pct: hp,
+        users_precision: (uPrec.get(g.geo_code) as PrecisionFlag | undefined) ?? null,
+        households_precision: (hPrec.get(g.geo_code) as PrecisionFlag | undefined) ?? null,
+        quadrant,
+      };
     });
     const evidence = await buildEvidence(db, {
       fn: "get_opportunity_map",
@@ -281,7 +305,7 @@ export const getInterventions = createServerFn({ method: "GET" })
       .in("intervention_code", items.map((i) => i.intervention_code));
     return items.map((i) => ({
       ...i,
-      kpis: (Array.isArray(i.kpis) ? i.kpis : []) as { kpi?: string }[],
+      kpis: (Array.isArray(i.kpis) ? i.kpis : []) as InterventionItem["kpis"],
       scores: (scores ?? []).filter((s) => s.intervention_code === i.intervention_code),
     }));
   });

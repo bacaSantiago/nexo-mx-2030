@@ -82,7 +82,8 @@ function Acciones() {
         {data.length === 0 && <div className="mt-6"><EmptyState description="El portafolio de módulos se cargará tras la revisión." /></div>}
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           {scored.map(({ i, s }, idx) => {
-            const kpis = Array.isArray(i.kpis) ? (i.kpis as { kpi?: string }[]).map((k) => k.kpi).filter(Boolean) : [];
+            const kpis = Array.isArray(i.kpis) ? i.kpis : [];
+            const kpiNames = kpis.map((k) => k.kpi).filter(Boolean);
             const rr = ranges.get(i.intervention_code);
             return (
               <article key={i.intervention_code} className="rounded-lg border bg-card p-4">
@@ -112,9 +113,15 @@ function Acciones() {
                   })}
                 </div>
                 <div className="mt-3 rounded-md bg-muted p-3 text-xs">
-                  <p className="font-semibold">KPI: {kpis.join(", ") || "—"}</p>
+                  <p className="font-semibold">KPI: {kpiNames.join(", ") || "—"}</p>
                   <ul className="mt-1 grid grid-cols-3 gap-2">
-                    {[3, 6, 12].map((m) => <li key={m}><span className="font-semibold">{m} meses:</span> meta pendiente</li>)}
+                    {([
+                      [3, kpis[0]?.m3],
+                      [6, kpis[0]?.m6],
+                      [12, kpis[0]?.m12],
+                    ] as const).map(([m, target]) => (
+                      <li key={m}><span className="font-semibold">{m} meses:</span> {target ?? "meta pendiente"}</li>
+                    ))}
                   </ul>
                   {i.evaluation_design && <p className="mt-2"><span className="font-semibold">Diseño de evaluación:</span> {i.evaluation_design}</p>}
                 </div>
