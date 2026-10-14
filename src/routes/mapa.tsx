@@ -54,11 +54,9 @@ function MapaPage() {
   const [mode, setMode] = useState<"value" | "precision">("value");
   const precision = useMemo(() => {
     const out: Record<string, PrecisionFlag> = {};
-    const code = metric === "users_pct" ? "Poblacion" : "hogares";
-    void code;
     for (const r of data.evidence.rows) out[r.geo_code] = r.precision_flag;
     return out;
-  }, [data, metric]);
+  }, [data]);
   const pts = data.points.filter((p) => p.users_pct != null && p.households_pct != null);
   const sorted = [...data.points].sort((a, b) => (b[metric] ?? -1) - (a[metric] ?? -1));
   const metricLabel = metric === "users_pct" ? "Personas usuarias de internet (6 años y más)" : "Hogares con internet";

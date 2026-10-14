@@ -49,8 +49,6 @@ export function ChoroplethMap({
           map.on("mousemove", "fill", (e) => {
             const f = e.features?.[0];
             const code = f?.properties?.geo_code as string | undefined;
-            const st = map.getSource("states") as unknown as { _data?: unknown };
-            void st;
             const txt = (map as unknown as { __labels?: Record<string, string> }).__labels?.[code ?? ""];
             if (txt) popup.setLngLat(e.lngLat).setHTML(`<div style="font:12px Manrope,sans-serif">${txt}</div>`).addTo(map);
           });
