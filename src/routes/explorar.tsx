@@ -23,6 +23,10 @@ const qs = [
   metricQuery("unemployment_rate_pct", { year: 2026, total_only: true }),
   metricQuery("ce_internet_sales_share_pct", { year: 2023, total_only: true }),
   metricQuery("profeco_complaints", { year: 2025, total_only: true }),
+  metricQuery("enif_account_product_pct", { year: 2024, total_only: true }),
+  metricQuery("enif_smartphone_pct", { year: 2024, total_only: true }),
+  metricQuery("altan_covered_population_pct", { year: 2025, total_only: true }),
+  metricQuery("denue_retail_establishments", { year: 2026, total_only: true }),
 ] as const;
 
 export const Route = createFileRoute("/explorar")({
@@ -62,7 +66,11 @@ function Explorar() {
   const unemployment = useQuery({ ...metricQuery("unemployment_rate_pct", { year: 2026, total_only: true }), placeholderData: keepPreviousData }).data;
   const internetSales = useQuery({ ...metricQuery("ce_internet_sales_share_pct", { year: 2023, total_only: true }), placeholderData: keepPreviousData }).data;
   const complaints = useQuery({ ...metricQuery("profeco_complaints", { year: 2025, total_only: true }), placeholderData: keepPreviousData }).data;
-  if (!users || !hh || !uses || !area || !cats || !bars || !usersM || !nonM || !unemployment || !internetSales || !complaints) return <AppShell><LoadingState /></AppShell>;
+  const account = useQuery({ ...metricQuery("enif_account_product_pct", { year: 2024, total_only: true }), placeholderData: keepPreviousData }).data;
+  const smartphone = useQuery({ ...metricQuery("enif_smartphone_pct", { year: 2024, total_only: true }), placeholderData: keepPreviousData }).data;
+  const coverage = useQuery({ ...metricQuery("altan_covered_population_pct", { year: 2025, total_only: true }), placeholderData: keepPreviousData }).data;
+  const retail = useQuery({ ...metricQuery("denue_retail_establishments", { year: 2026, total_only: true }), placeholderData: keepPreviousData }).data;
+  if (!users || !hh || !uses || !area || !cats || !bars || !usersM || !nonM || !unemployment || !internetSales || !complaints || !account || !smartphone || !coverage || !retail) return <AppShell><LoadingState /></AppShell>;
   const purchase = uses.rows.find((r) => r.label.startsWith("Comprar")) ?? null;
 
   // Trend: national users + households, joined by year without filling gaps
@@ -143,11 +151,17 @@ function Explorar() {
         </div>
 
         <h2 className="mb-3 mt-8 text-sm font-bold uppercase tracking-wide text-muted-foreground">Otras fuentes nacionales</h2>
-        <p className="mb-3 text-xs text-muted-foreground">Estas tres cifras no siguen el filtro de entidad ni de segmento.</p>
+        <p className="mb-3 text-xs text-muted-foreground">Estas cifras son nacionales y no siguen el filtro de entidad ni de segmento.</p>
         <ol className="grid gap-3 sm:grid-cols-3" aria-label="Desocupación, ventas por internet y quejas">
           <li><MetricCard label="Desocupación, ENOE 2026 2T" row={latest(unemployment)} universe={unemployment.universe} source="ENOE" /></li>
           <li><MetricCard label="Ventas por internet sobre ingresos, 2023" row={latest(internetSales)} universe={internetSales.universe} source="Censos Económicos 2024" /></li>
           <li><MetricCard label="Quejas PROFECO, 2025" row={latest(complaints)} universe={complaints.universe} source="PROFECO" /></li>
+        </ol>
+        <ol className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Inclusión, cobertura y establecimientos">
+          <li><MetricCard label="Producto de captación, ENIF 2024" row={latest(account)} universe={account.universe} source="ENIF" /></li>
+          <li><MetricCard label="Celular inteligente, ENIF 2024" row={latest(smartphone)} universe={smartphone.universe} source="ENIF" /></li>
+          <li><MetricCard label="Población en localidades Altan" row={latest(coverage)} universe={coverage.universe} source="IFT" /></li>
+          <li><MetricCard label="Comercio al por menor, DENUE" row={latest(retail)} universe={retail.universe} source="DENUE" /></li>
         </ol>
       </PageScroll>
     </AppShell>

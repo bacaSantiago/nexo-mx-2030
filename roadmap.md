@@ -7,5 +7,6 @@
 - [x] Malla de escenarios (difusion-v1), puntajes de intervención (puentes-v1) y precisión/escolaridad ENDUTIH 2025 cargadas (0003)
 - [x] Ingreso imputado, búsqueda municipal (censo 2020 y EIC 2025) y cruces de escolaridad e ingreso
 - [x] CNBV marzo 2026, ventas por internet de Censos Económicos (solo nacional), ENOE 2026 2T, multiplicadores MIP 2018 y quejas PROFECO 2025 (0007)
-- [ ] Pendiente de datos: puntos DENUE, microdatos ENIF, cobertura IFT, polígonos del Marco Geoestadístico y un trimestre ENOE 2025
-- [ ] Pendiente analítico: el mapa municipal sigue en centroides; nueve municipios de la EIC no están en el censo 2020; el cruce estatal ingreso × sexo × edad sigue vacío; las razones de no compra no tienen intervalo; el intervalo del decil no incluye la varianza del emparejamiento con ENIGH
+- [x] ENIF 2024 (persona), cobertura Altan por localidad, conteos DENUE estatales y cruce estatal ingreso × sexo × edad (0008)
+- [ ] Pendiente de datos: conteo municipal DENUE, polígonos de AT&T y Pegaso sin municipio, polígonos del Marco Geoestadístico y un trimestre ENOE 2025
+- [ ] Pendiente analítico: el mapa municipal sigue en centroides; nueve municipios de la EIC no tienen coordenada; las razones de no compra no tienen intervalo; el intervalo del decil no incluye la varianza del emparejamiento con ENIGH
