@@ -10,11 +10,55 @@ export type ChatMsg = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  evidence?: EvidencePayload;
+  evidence?: EvidencePayload | null;
   status?: "loading" | "error" | "done";
+  notice?: string;
+  validated?: boolean;
+  citations?: { ref: string; row_id: string }[];
 };
 
 export type Suggestion = { id: string; text: string; tag: string };
+
+/** Minimal, HTML-free renderer: **bold**, "- " bullets, paragraphs and [E#] citation chips. */
+export function SafeMarkdown({ text, className }: { text: string; className?: string }) {
+  const inline = (s: string, k: string) =>
+    s.split(/(\*\*[^*]+\*\*|\[E\d+\])/g).map((part, i) => {
+      if (/^\*\*[^*]+\*\*$/.test(part)) return <strong key={`${k}-${i}`}>{part.slice(2, -2)}</strong>;
+      if (/^\[E\d+\]$/.test(part))
+        return (
+          <sup key={`${k}-${i}`} className="ml-0.5 rounded bg-teal-soft px-1 text-[10px] font-semibold text-accent-foreground">
+            {part.slice(1, -1)}
+          </sup>
+        );
+      return part;
+    });
+  const blocks = text.split(/\n{2,}/);
+  return (
+    <div className={cn("space-y-2 text-sm leading-relaxed", className)}>
+      {blocks.map((b, bi) => {
+        const lines = b.split("\n");
+        if (lines.every((l) => /^\s*[-*]\s+/.test(l) || !l.trim()))
+          return (
+            <ul key={bi} className="list-disc space-y-1 pl-5">
+              {lines.filter((l) => l.trim()).map((l, li) => (
+                <li key={li}>{inline(l.replace(/^\s*[-*]\s+/, ""), `${bi}-${li}`)}</li>
+              ))}
+            </ul>
+          );
+        return (
+          <p key={bi}>
+            {lines.map((l, li) => (
+              <span key={li}>
+                {li > 0 && <br />}
+                {inline(l, `${bi}-${li}`)}
+              </span>
+            ))}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
 
 export function PromptSuggestions({ items, onPick }: { items: Suggestion[]; onPick: (s: Suggestion) => void }) {
   return (
@@ -48,12 +92,19 @@ export function ChatMessage({ msg, onShowEvidence }: { msg: ChatMsg; onShowEvide
         N
       </div>
       <div className="min-w-0 flex-1 space-y-3">
-        {msg.status === "loading" ? (
+        {msg.status === "loading" && !msg.content ? (
           <p className="animate-pulse text-sm text-muted-foreground" role="status">
             Consultando datos revisados…
           </p>
         ) : (
-          <p className={cn("text-sm leading-relaxed", msg.status === "error" && "text-destructive")}>{msg.content}</p>
+          <SafeMarkdown text={msg.content} className={cn(msg.status === "error" && "text-destructive")} />
+        )}
+        {msg.notice && <p className="text-xs text-warning-foreground">{msg.notice}</p>}
+        {msg.status === "done" && msg.validated != null && (
+          <p className="text-[11px] text-muted-foreground">
+            {msg.validated ? "Cifras verificadas contra la evidencia" : "Resumen verificado mostrado"}
+            {msg.citations?.length ? ` · ${msg.citations.length} cita(s)` : ""}
+          </p>
         )}
         {e && e.rows.length > 0 && (
           <div className="rounded-lg border bg-card p-3">
