@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import { AppShell } from "@/components/nexo/AppShell";
 import { ChatComposer, ChatThread, type ChatMsg, type Suggestion } from "@/components/nexo/chat";
@@ -8,9 +7,8 @@ import { EvidenceCanvas, type CanvasState } from "@/components/nexo/EvidenceCanv
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import type { EvidencePayload } from "@/lib/analytics/types";
-import { barriersQuery, categoriesQuery, rankQuery, segmentsQuery } from "@/lib/queries";
-import { compareSegments, getScenario } from "@/lib/analytics.functions";
-import { formatValue } from "@/lib/format";
+import { streamNexoChat } from "@/lib/chat/client";
+import { useGlobalFilters } from "@/components/nexo/filters-context";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -38,43 +36,6 @@ const SUGGESTIONS: Suggestion[] = [
   { id: "age", tag: "Generaciones", text: "¿Cómo cambia el uso de internet por grupo de edad?" },
 ];
 
-function answerFor(id: string, e: EvidencePayload): string {
-  const src = e.sources[0]?.source_name ?? "fuente oficial";
-  const r = e.rows;
-  if (!r.length) return "Pendiente de carga: aún no hay estimaciones revisadas para responder esta pregunta.";
-  const fv = (x: (typeof r)[number] | undefined) => (x ? formatValue(x.estimate, x.unit) : "—");
-  switch (id) {
-    case "purchase": {
-      const p = r.find((x) => x.label.startsWith("Comprar"));
-      return p
-        ? `Según ${src} (${p.year}), ${fv(p)} de las personas usuarias de internet lo usó para comprar productos o servicios. Es una cifra sobre personas usuarias, no sobre toda la población.`
-        : "Pendiente de carga.";
-    }
-    case "urban_rural": {
-      const u = r.find((x) => x.label === "Urbano");
-      const ru = r.find((x) => x.label === "Rural");
-      return u && ru
-        ? `En ${u.year}, ${fv(u)} de las personas usuarias urbanas compró por internet frente a ${fv(ru)} en el ámbito rural (${src}). La diferencia es descriptiva y su precisión está pendiente de recalcular.`
-        : "Pendiente de carga.";
-    }
-    case "barriers":
-      return `La razón más reportada es “${r[0]?.label}” (${fv(r[0])}), seguida de “${r[1]?.label}” (${r[1] ? fv(r[1]) : "—"}). Es respuesta múltiple: los porcentajes no se suman (${src}).`;
-    case "categories":
-      return `Entre quienes compraron por internet, la categoría más frecuente fue “${r[0]?.label}” (${fv(r[0])}), seguida de “${r[1]?.label}” (${r[1] ? fv(r[1]) : "—"}). Respuesta múltiple (${src}).`;
-    case "states": {
-      const low = [...r].sort((a, b) => a.estimate - b.estimate).slice(0, 3);
-      return `Las entidades con menor porcentaje de personas usuarias de internet en ${low[0]?.year} son ${low.map((x) => `${x.geo_name} (${fv(x)})`).join(", ")}. Diferencias pequeñas pueden no ser significativas.`;
-    }
-    case "age": {
-      const sorted = [...r].sort((a, b) => b.estimate - a.estimate);
-      const hi = sorted[0];
-      const lo = sorted[sorted.length - 1];
-      return `En ${hi?.year}, el uso de internet va de ${fv(hi)} en ${hi?.label} a ${fv(lo)} en ${lo?.label} (${src}).`;
-    }
-  }
-  return "";
-}
-
 function useBelowLg() {
   const [v, setV] = useState(false);
   useEffect(() => {
@@ -88,7 +49,7 @@ function useBelowLg() {
 }
 
 function ChatWorkspace() {
-  const qc = useQueryClient();
+  const { filters } = useGlobalFilters();
   const isMobile = useBelowLg();
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [canvas, setCanvas] = useState<CanvasState>({ status: "idle" });
@@ -102,59 +63,43 @@ function ChatWorkspace() {
     else setCanvasOpen(true);
   };
 
-  const fetchFor = (id: string): Promise<EvidencePayload> => {
-    switch (id) {
-      case "purchase":
-        return qc.fetchQuery(segmentsQuery("internet_use_type_pct", "use_type", 2025));
-      case "urban_rural":
-        return qc.fetchQuery({
-          queryKey: ["segments-within", "purchase-area"],
-          queryFn: () =>
-            compareSegments({
-              data: { metric_code: "internet_use_type_pct", dimension: "area", year: 2025, within: { use_type: "Comprar productos o servicios" } },
-            }),
-        });
-      case "barriers":
-        return qc.fetchQuery(barriersQuery(2025));
-      case "categories":
-        return qc.fetchQuery(categoriesQuery(2025));
-      case "states":
-        return qc.fetchQuery(rankQuery("internet_users_pct", 2025));
-      case "age":
-        return qc.fetchQuery(segmentsQuery("internet_users_pct", "age_group", 2025));
-    }
-    return getScenario({ data: {} }).then((s) => s.evidence);
-  };
+  const abortRef = useRef<AbortController | null>(null);
+  const patch = (id: string, f: (m: ChatMsg) => ChatMsg) => setMessages((m) => m.map((x) => (x.id === id ? f(x) : x)));
 
-  const ask = async (text: string, suggestionId?: string) => {
+  const ask = async (text: string) => {
     const uid = crypto.randomUUID();
     const aid = crypto.randomUUID();
     setMessages((m) => [...m, { id: uid, role: "user", content: text }, { id: aid, role: "assistant", content: "", status: "loading" }]);
-    if (!suggestionId) {
-      setMessages((m) =>
-        m.map((x) =>
-          x.id === aid
-            ? {
-                ...x,
-                status: "done",
-                content:
-                  "El asistente conversacional aún no está activo. Por ahora puedes elegir una de las preguntas sugeridas o explorar las vistas analíticas del menú.",
-              }
-            : x,
-        ),
-      );
-      return;
-    }
     setCanvas({ status: "loading" });
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
     try {
-      const e = await fetchFor(suggestionId);
-      setMessages((m) => m.map((x) => (x.id === aid ? { ...x, status: "done", content: answerFor(suggestionId, e), evidence: e } : x)));
-      showEvidence(e);
-    } catch {
-      setMessages((m) =>
-        m.map((x) => (x.id === aid ? { ...x, status: "error", content: "No pudimos consultar los datos. Intenta de nuevo." } : x)),
+      await streamNexoChat(
+        { message: text, filters: { year: filters.year, geo_code: filters.geo_code, area: filters.area, sex: filters.sex, age_group: filters.age_group } },
+        (ev) => {
+          if (ev.type === "meta") {
+            patch(aid, (x) => ({ ...x, evidence: ev.evidence }));
+            if (ev.evidence) showEvidence(ev.evidence);
+            else setCanvas({ status: "idle" });
+          } else if (ev.type === "delta") patch(aid, (x) => ({ ...x, content: x.content + ev.text }));
+          else if (ev.type === "replace" || ev.type === "notice")
+            patch(aid, (x) => ({ ...x, notice: ev.type === "replace" ? ev.reason : ev.message }));
+          else if (ev.type === "final")
+            patch(aid, (x) => ({ ...x, status: "done", content: ev.answer, validated: ev.validated, citations: ev.citations }));
+          else if (ev.type === "error") {
+            patch(aid, (x) => ({ ...x, status: "error", content: ev.message }));
+            setCanvas({ status: "error", message: ev.message, retry: () => ask(text) });
+          }
+        },
+        ctrl.signal,
       );
-      setCanvas({ status: "error", message: "No pudimos consultar los datos.", retry: () => ask(text, suggestionId) });
+      patch(aid, (x) => (x.status === "loading" ? { ...x, status: x.content ? "done" : "error", content: x.content || "La respuesta se interrumpió." } : x));
+    } catch (err) {
+      const stopped = (err as Error)?.name === "AbortError";
+      patch(aid, (x) => ({ ...x, status: stopped ? "done" : "error", content: x.content || (stopped ? "Respuesta detenida." : "No pudimos conectar con el servidor. Intenta de nuevo."), notice: stopped ? "Detenida por ti" : x.notice }));
+      if (!stopped) setCanvas({ status: "error", message: "No pudimos consultar los datos.", retry: () => ask(text) });
+    } finally {
+      abortRef.current = null;
     }
   };
 
@@ -178,11 +123,11 @@ function ChatWorkspace() {
             <ChatThread
               messages={messages}
               suggestions={SUGGESTIONS}
-              onPick={(s) => ask(s.text, s.id)}
+              onPick={(s) => ask(s.text)}
               onShowEvidence={showEvidence}
             />
           </div>
-          <ChatComposer onSend={(t) => ask(t, SUGGESTIONS.find((s) => s.text === t)?.id)} disabled={busy} />
+          <ChatComposer onSend={(t) => ask(t)} disabled={busy} onStop={busy ? () => abortRef.current?.abort() : undefined} />
         </main>
         {canvasOpen && (
           <aside className="hidden w-[380px] shrink-0 border-l bg-card/50 lg:block xl:w-[420px]" aria-label="Evidencia">
