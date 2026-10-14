@@ -4,8 +4,17 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 export const CHORO_BREAKS = [70, 75, 80, 85, 90];
 
+/** MapLibre cannot parse oklch: resolve the design token to rgb via a canvas. */
 function cssVar(name: string) {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const c = document.createElement("canvas");
+  c.width = c.height = 1;
+  const ctx = c.getContext("2d");
+  if (!ctx) return "rgb(200,200,200)";
+  ctx.fillStyle = raw;
+  ctx.fillRect(0, 0, 1, 1);
+  const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+  return `rgb(${r},${g},${b})`;
 }
 
 /** Client-only MapLibre choropleth without external basemap tiles. */
@@ -31,6 +40,8 @@ export function ChoroplethMap({
       try {
         const mod = await import("maplibre-gl");
         const maplibre = ((mod as unknown as { default?: typeof mod }).default ?? mod) as typeof mod;
+        const workerUrl = (await import("maplibre-gl/dist/maplibre-gl-csp-worker.js?url")).default;
+        maplibre.setWorkerUrl(workerUrl);
         const geo = await fetch("/geo/mx_states.json").then((r) => r.json());
         if (cancelled || !el.current) return;
         const map = new maplibre.Map({
